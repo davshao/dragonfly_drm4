@@ -1,17 +1,18 @@
 # ELF library is a component of ELF Tool Chain (replacement for binutils)
-# For now, do not expose this library.  It is needed for execinfo library.
+# It is needed for execinfo library.
 
+PACKAGE=lib${LIB}
+SHLIBDIR?= /lib
 
-LIB=			elf
-INTERNALLIB=		yes
-INTERNALLIBPROF=	yes
+.include <bsd.own.mk>
+
+ELFTCDIR=${.CURDIR}/../../contrib/elftoolchain
+SRCDIR=	${ELFTCDIR}/libelf
+
+.PATH:	${SRCDIR}
+
+LIB=	elf
 INSTALL_PIC_ARCHIVE=	yes
-TOOLCHAINDIR=		${.CURDIR}/../../contrib/elftoolchain
-SRCDIR=			${TOOLCHAINDIR}/libelf
-COMMON=			${TOOLCHAINDIR}/common
-CFLAGS+=		-I. -I${SRCDIR} -I${COMMON}
-
-.PATH:			${SRCDIR}
 
 # verbatim from vendor sourcefile
 SRCS=	elf.c							\
@@ -69,16 +70,21 @@ SRCS=	elf.c							\
 	libelf_xlate.c						\
 	${GENSRCS}
 
-GENSRCS=	libelf_fsize.c libelf_msize.c libelf_convert.c
-
-libelf_convert.c:	elf_types.m4 libelf_convert.m4
-libelf_fsize.c:		elf_types.m4 libelf_fsize.m4
-libelf_msize.c:		elf_types.m4 libelf_msize.m4
+INCS=		libelf.h gelf.h
 
 # Copy correct headers over to object directory
-
+# We need to link against the correct version of these files. One
+# solution is to include ../../sys in the include path. This causes
+# problems when a header file in sys depends on a file in another
+# part of the tree, e.g. a machine dependent header.
+#
 ELFHEAD=	sys/elf32.h sys/elf64.h sys/elf_common.h
 SRCS+=		${ELFHEAD}
+
+GENSRCS=	libelf_fsize.c libelf_msize.c libelf_convert.c
+CLEANFILES=	${GENSRCS}
+CLEANDIRS=	sys
+CFLAGS+=	-I. -I${SRCDIR} -I${ELFTCDIR}/common
 
 ${.OBJDIR}/sys:
 	mkdir -p ${.TARGET}
@@ -86,12 +92,106 @@ ${.OBJDIR}/sys:
 ${ELFHEAD}: ${.OBJDIR}/sys ${.CURDIR}/../../sys/${.TARGET}
 	ln -sf ${.CURDIR}/../../sys/${.TARGET} ${.TARGET}
 
-CLEANFILES=	${GENSRCS}
-CLEANDIRS=	sys
+SHLIB_MAJOR=	2
+
+MAN=	elf.3							\
+	elf_begin.3						\
+	elf_cntl.3						\
+	elf_end.3						\
+	elf_errmsg.3						\
+	elf_fill.3						\
+	elf_flagdata.3						\
+	elf_getarhdr.3						\
+	elf_getarsym.3						\
+	elf_getbase.3						\
+	elf_getdata.3						\
+	elf_getident.3						\
+	elf_getscn.3						\
+	elf_getphdrnum.3					\
+	elf_getphnum.3						\
+	elf_getshdrnum.3					\
+	elf_getshnum.3						\
+	elf_getshdrstrndx.3					\
+	elf_getshstrndx.3					\
+	elf_hash.3						\
+	elf_kind.3						\
+	elf_memory.3						\
+	elf_next.3						\
+	elf_open.3						\
+	elf_rawfile.3						\
+	elf_rand.3						\
+	elf_strptr.3						\
+	elf_update.3						\
+	elf_version.3						\
+	gelf.3							\
+	gelf_checksum.3						\
+	gelf_fsize.3						\
+	gelf_getcap.3						\
+	gelf_getclass.3						\
+	gelf_getdyn.3						\
+	gelf_getehdr.3						\
+	gelf_getmove.3						\
+	gelf_getphdr.3						\
+	gelf_getrel.3						\
+	gelf_getrela.3						\
+	gelf_getshdr.3						\
+	gelf_getsym.3						\
+	gelf_getsyminfo.3					\
+	gelf_getsymshndx.3					\
+	gelf_newehdr.3						\
+	gelf_newphdr.3						\
+	gelf_update_ehdr.3					\
+	gelf_xlatetof.3
+
+MLINKS+= \
+	elf_errmsg.3 elf_errno.3		\
+	elf_flagdata.3 elf_flagarhdr.3		\
+	elf_flagdata.3 elf_flagehdr.3		\
+	elf_flagdata.3 elf_flagelf.3		\
+	elf_flagdata.3 elf_flagphdr.3		\
+	elf_flagdata.3 elf_flagscn.3		\
+	elf_flagdata.3 elf_flagshdr.3		\
+	elf_getdata.3 elf_newdata.3		\
+	elf_getdata.3 elf_rawdata.3		\
+	elf_getscn.3 elf_ndxscn.3		\
+	elf_getscn.3 elf_newscn.3		\
+	elf_getscn.3 elf_nextscn.3		\
+	elf_getshstrndx.3 elf_setshstrndx.3	\
+	elf_open.3 elf_openmemory.3             \
+	gelf_getcap.3 gelf_update_cap.3		\
+	gelf_getdyn.3 gelf_update_dyn.3		\
+	gelf_getmove.3 gelf_update_move.3	\
+	gelf_getrel.3 gelf_update_rel.3		\
+	gelf_getrela.3 gelf_update_rela.3	\
+	gelf_getsym.3 gelf_update_sym.3		\
+	gelf_getsyminfo.3 gelf_update_syminfo.3	\
+	gelf_getsymshndx.3 gelf_update_symshndx.3 \
+	gelf_update_ehdr.3 gelf_update_phdr.3	\
+	gelf_update_ehdr.3 gelf_update_shdr.3	\
+	gelf_xlatetof.3 gelf_xlatetom.3
+
+.for E in 32 64
+MLINKS+= \
+	gelf_checksum.3	elf${E}_checksum.3 	\
+	gelf_fsize.3	elf${E}_fsize.3 	\
+	gelf_getehdr.3	elf${E}_getehdr.3	\
+	gelf_getphdr.3	elf${E}_getphdr.3	\
+	gelf_getshdr.3	elf${E}_getshdr.3	\
+	gelf_newehdr.3	elf${E}_newehdr.3	\
+	gelf_newphdr.3	elf${E}_newphdr.3	\
+	gelf_xlatetof.3	elf${E}_xlatetof.3	\
+	gelf_xlatetof.3	elf${E}_xlatetom.3
+.endfor
+
+# VERSION_MAP=           ${SRCDIR}/Version.map
+
+libelf_convert.c:	elf_types.m4 libelf_convert.m4
+libelf_fsize.c:		elf_types.m4 libelf_fsize.m4
+libelf_msize.c:		elf_types.m4 libelf_msize.m4
 
 .include <bsd.lib.mk>
 
-# Keep the .SUFFIXES line after the include of <bsd.lib.mk>
+# Keep the .SUFFIXES line after the include of bsd.lib.mk
 .SUFFIXES:	.m4 .c
 .m4.c:
 	m4 -D SRCDIR=${SRCDIR} ${M4FLAGS} ${.IMPSRC} > ${.TARGET}
