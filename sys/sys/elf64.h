@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1996-1998 John D. Polstra.
  * All rights reserved.
  *
@@ -23,19 +25,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: src/sys/sys/elf64.h,v 1.17 2006/10/17 05:43:30 jkoshy Exp $
- * $DragonFly: src/sys/sys/elf64.h,v 1.10 2008/08/30 17:07:17 swildner Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_ELF64_H_
-#define _SYS_ELF64_H_
+#define _SYS_ELF64_H_ 1
 
 #ifndef _SYS_TYPES_H_
 #include <sys/types.h>
 #endif
-#ifndef _SYS_ELF_COMMON_H_
+
 #include <sys/elf_common.h>
-#endif
 
 /*
  * ELF definitions common to all 64-bit architectures.
@@ -83,6 +83,18 @@ typedef struct {
 	Elf64_Half	e_shnum;	/* Number of section header entries. */
 	Elf64_Half	e_shstrndx;	/* Section name strings section. */
 } Elf64_Ehdr;
+
+/*
+ * Shared object information, found in SHT_MIPS_LIBLIST.
+ */
+
+typedef struct {
+	Elf64_Word l_name;		/* The name of a shared object. */
+	Elf64_Word l_time_stamp;	/* 64-bit timestamp. */
+	Elf64_Word l_checksum;		/* Checksum of visible symbols, sizes. */
+	Elf64_Word l_version;		/* Interface version string index. */
+	Elf64_Word l_flags;		/* Flags (LL_*). */
+} Elf64_Lib;
 
 /*
  * Section header.
@@ -147,28 +159,28 @@ typedef struct {
 } Elf64_Rela;
 
 /* Macros for accessing the fields of r_info. */
-#define ELF64_R_SYM(info)	((info) >> 32)
-#define ELF64_R_TYPE(info)	((info) & 0xffffffffL)
+#define	ELF64_R_SYM(info)	((info) >> 32)
+#define	ELF64_R_TYPE(info)	((info) & 0xffffffffL)
 
 /* Macro for constructing r_info from field values. */
-#define ELF64_R_INFO(sym, type)	(((sym) << 32) + ((type) & 0xffffffffL))
+#define	ELF64_R_INFO(sym, type)	(((sym) << 32) + ((type) & 0xffffffffL))
 
 #define	ELF64_R_TYPE_DATA(info)	(((Elf64_Xword)(info)<<32)>>40)
 #define	ELF64_R_TYPE_ID(info)	(((Elf64_Xword)(info)<<56)>>56)
 #define	ELF64_R_TYPE_INFO(data, type)	\
-		(((Elf64_Xword)(data)<<8)+(Elf64_Xword)(type))
+				(((Elf64_Xword)(data)<<8)+(Elf64_Xword)(type))
 
 /*
- * Note entry header
+ *	Note entry header
  */
 typedef Elf_Note Elf64_Nhdr;
 
 /*
- * Move entry
+ *	Move entry
  */
 typedef struct {
 	Elf64_Lword	m_value;	/* symbol value */
-	Elf64_Xword	m_info;		/* size + index */
+	Elf64_Xword 	m_info;		/* size + index */
 	Elf64_Xword	m_poffset;	/* symbol offset */
 	Elf64_Half	m_repeat;	/* repeat count */
 	Elf64_Half	m_stride;	/* stride info */
@@ -179,7 +191,7 @@ typedef struct {
 #define	ELF64_M_INFO(sym, size)	(((sym)<<8)+(unsigned char)(size))
 
 /*
- * Hardware/Software capabilities entry
+ *	Hardware/Software capabilities entry
  */
 typedef struct {
 	Elf64_Xword	c_tag;		/* how to interpret value */
@@ -203,14 +215,14 @@ typedef struct {
 } Elf64_Sym;
 
 /* Macros for accessing the fields of st_info. */
-#define ELF64_ST_BIND(info)		((info) >> 4)
-#define ELF64_ST_TYPE(info)		((info) & 0xf)
+#define	ELF64_ST_BIND(info)		((info) >> 4)
+#define	ELF64_ST_TYPE(info)		((info) & 0xf)
 
 /* Macro for constructing st_info from field values. */
-#define ELF64_ST_INFO(bind, type)	(((bind) << 4) + ((type) & 0xf))
+#define	ELF64_ST_INFO(bind, type)	(((bind) << 4) + ((type) & 0xf))
 
 /* Macro for accessing the fields of st_other. */
-#define ELF64_ST_VISIBILITY(oth)	((oth) & 0x3)
+#define	ELF64_ST_VISIBILITY(oth)	((oth) & 0x3)
 
 /* Structures used by Sun & GNU-style symbol versioning. */
 typedef struct {
@@ -250,5 +262,12 @@ typedef struct {
 	Elf64_Half	si_boundto;	/* direct bindings - symbol bound to */
 	Elf64_Half	si_flags;	/* per symbol flags */
 } Elf64_Syminfo;
+
+typedef struct {
+	Elf64_Word	ch_type;
+	Elf64_Word	ch_reserved;
+	Elf64_Xword	ch_size;
+	Elf64_Xword	ch_addralign;
+} Elf64_Chdr;
 
 #endif /* !_SYS_ELF64_H_ */
