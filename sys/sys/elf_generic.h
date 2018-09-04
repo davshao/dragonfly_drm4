@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1998 John D. Polstra.
  * All rights reserved.
  *
@@ -23,15 +25,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: src/sys/sys/elf_generic.h,v 1.4 1999/08/28 00:51:42 peter Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_ELF_GENERIC_H_
-#define _SYS_ELF_GENERIC_H_
+#define	_SYS_ELF_GENERIC_H_ 1
 
-#ifndef _SYS_CDEFS_H_
 #include <sys/cdefs.h>
-#endif
 #include <machine/endian.h>
 
 /*
@@ -44,20 +44,20 @@
 #error "__ELF_WORD_SIZE must be defined as 32 or 64"
 #endif
 
-#define ELF_CLASS	__CONCAT(ELFCLASS,__ELF_WORD_SIZE)
+#define	ELF_CLASS	__CONCAT(ELFCLASS,__ELF_WORD_SIZE)
 
-#if _BYTE_ORDER == _LITTLE_ENDIAN
-#define ELF_DATA	ELFDATA2LSB
-#elif _BYTE_ORDER == _BIG_ENDIAN
-#define ELF_DATA	ELFDATA2MSB
+#if BYTE_ORDER == LITTLE_ENDIAN
+#define	ELF_DATA	ELFDATA2LSB
+#elif BYTE_ORDER == BIG_ENDIAN
+#define	ELF_DATA	ELFDATA2MSB
 #else
 #error "Unknown byte order"
 #endif
 
-#define __elfN(x)       __CONCAT(__CONCAT(__CONCAT(elf,__ELF_WORD_SIZE),_),x)
-#define __ElfN(x)	__CONCAT(__CONCAT(__CONCAT(Elf,__ELF_WORD_SIZE),_),x)
-#define __ELFN(x)	__CONCAT(__CONCAT(__CONCAT(ELF,__ELF_WORD_SIZE),_),x)
-#define __ElfType(x)	typedef __ElfN(x) __CONCAT(Elf_,x)
+#define	__elfN(x)	__CONCAT(__CONCAT(__CONCAT(elf,__ELF_WORD_SIZE),_),x)
+#define	__ElfN(x)	__CONCAT(__CONCAT(__CONCAT(Elf,__ELF_WORD_SIZE),_),x)
+#define	__ELFN(x)	__CONCAT(__CONCAT(__CONCAT(ELF,__ELF_WORD_SIZE),_),x)
+#define	__ElfType(x)	typedef __ElfN(x) __CONCAT(Elf_,x)
 
 __ElfType(Addr);
 __ElfType(Half);
@@ -80,13 +80,15 @@ __ElfType(Versym);
 /* Non-standard ELF types. */
 __ElfType(Hashelt);
 __ElfType(Size);
+__ElfType(Ssize);
 
-#define ELF_R_SYM	__ELFN(R_SYM)
-#define ELF_R_TYPE	__ELFN(R_TYPE)
-#define ELF_R_INFO	__ELFN(R_INFO)
-#define ELF_ST_BIND	__ELFN(ST_BIND)
-#define ELF_ST_TYPE	__ELFN(ST_TYPE)
-#define ELF_ST_INFO	__ELFN(ST_INFO)
+#define	ELF_R_SYM	__ELFN(R_SYM)
+#define	ELF_R_TYPE	__ELFN(R_TYPE)
+#define	ELF_R_INFO	__ELFN(R_INFO)
+#define	ELF_ST_BIND	__ELFN(ST_BIND)
+#define	ELF_ST_TYPE	__ELFN(ST_TYPE)
+#define	ELF_ST_INFO	__ELFN(ST_INFO)
+#define	ELF_ST_VISIBILITY	__ELFN(ST_VISIBILITY)
 
 #else
 
