@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 1996-1998 John D. Polstra.
  * All rights reserved.
  *
@@ -23,30 +25,34 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: src/sys/sys/elf32.h,v 1.7 1999/08/28 00:51:41 peter Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_ELF32_H_
-#define _SYS_ELF32_H_
+#define _SYS_ELF32_H_ 1
 
 #ifndef _SYS_TYPES_H_
 #include <sys/types.h>
 #endif
-#ifndef _SYS_ELF_COMMON_H_
+
 #include <sys/elf_common.h>
-#endif
 
 /*
  * ELF definitions common to all 32-bit architectures.
  */
 
-typedef u_int32_t	Elf32_Addr;
-typedef u_int16_t	Elf32_Half;
-typedef u_int32_t	Elf32_Off;
+typedef uint32_t	Elf32_Addr;
+typedef uint16_t	Elf32_Half;
+typedef uint32_t	Elf32_Off;
 typedef int32_t		Elf32_Sword;
-typedef u_int32_t	Elf32_Word;
-typedef u_int32_t	Elf32_Size;
-typedef Elf32_Off	Elf32_Hashelt;
+typedef uint32_t	Elf32_Word;
+typedef uint64_t	Elf32_Lword;
+
+typedef Elf32_Word	Elf32_Hashelt;
+
+/* Non-standard class-dependent datatype used for abstraction. */
+typedef Elf32_Word	Elf32_Size;
+typedef Elf32_Sword	Elf32_Ssize;
 
 /*
  * ELF header.
@@ -70,6 +76,18 @@ typedef struct {
 } Elf32_Ehdr;
 
 /*
+ * Shared object information, found in SHT_MIPS_LIBLIST.
+ */
+
+typedef struct {
+	Elf32_Word l_name;		/* The name of a shared object. */
+	Elf32_Word l_time_stamp;	/* 32-bit timestamp. */
+	Elf32_Word l_checksum;		/* Checksum of visible symbols, sizes. */
+	Elf32_Word l_version;		/* Interface version string index. */
+	Elf32_Word l_flags;		/* Flags (LL_*). */
+} Elf32_Lib;
+
+/*
  * Section header.
  */
 
@@ -80,11 +98,11 @@ typedef struct {
 	Elf32_Word	sh_flags;	/* Section flags. */
 	Elf32_Addr	sh_addr;	/* Address in memory image. */
 	Elf32_Off	sh_offset;	/* Offset in file. */
-	Elf32_Size	sh_size;	/* Size in bytes. */
+	Elf32_Word	sh_size;	/* Size in bytes. */
 	Elf32_Word	sh_link;	/* Index of a related section. */
 	Elf32_Word	sh_info;	/* Depends on section type. */
-	Elf32_Size	sh_addralign;	/* Alignment in bytes. */
-	Elf32_Size	sh_entsize;	/* Size of each entry in section. */
+	Elf32_Word	sh_addralign;	/* Alignment in bytes. */
+	Elf32_Word	sh_entsize;	/* Size of each entry in section. */
 } Elf32_Shdr;
 
 /*
@@ -96,10 +114,10 @@ typedef struct {
 	Elf32_Off	p_offset;	/* File offset of contents. */
 	Elf32_Addr	p_vaddr;	/* Virtual address in memory image. */
 	Elf32_Addr	p_paddr;	/* Physical address (not used). */
-	Elf32_Size	p_filesz;	/* Size of contents in file. */
-	Elf32_Size	p_memsz;	/* Size of contents in memory. */
+	Elf32_Word	p_filesz;	/* Size of contents in file. */
+	Elf32_Word	p_memsz;	/* Size of contents in memory. */
 	Elf32_Word	p_flags;	/* Access permission flags. */
-	Elf32_Size	p_align;	/* Alignment in memory and file. */
+	Elf32_Word	p_align;	/* Alignment in memory and file. */
 } Elf32_Phdr;
 
 /*
@@ -109,7 +127,7 @@ typedef struct {
 typedef struct {
 	Elf32_Sword	d_tag;		/* Entry type. */
 	union {
-		Elf32_Size	d_val;	/* Integer value. */
+		Elf32_Word	d_val;	/* Integer value. */
 		Elf32_Addr	d_ptr;	/* Address value. */
 	} d_un;
 } Elf32_Dyn;
@@ -139,13 +157,51 @@ typedef struct {
 #define ELF32_R_INFO(sym, type)	(((sym) << 8) + (unsigned char)(type))
 
 /*
+ *	Note entry header
+ */
+typedef Elf_Note Elf32_Nhdr;
+
+/*
+ *	Move entry
+ */
+typedef struct {
+	Elf32_Lword	m_value;	/* symbol value */
+	Elf32_Word 	m_info;		/* size + index */
+	Elf32_Word	m_poffset;	/* symbol offset */
+	Elf32_Half	m_repeat;	/* repeat count */
+	Elf32_Half	m_stride;	/* stride info */
+} Elf32_Move;
+
+/*
+ *	The macros compose and decompose values for Move.r_info
+ *
+ *	sym = ELF32_M_SYM(M.m_info)
+ *	size = ELF32_M_SIZE(M.m_info)
+ *	M.m_info = ELF32_M_INFO(sym, size)
+ */
+#define	ELF32_M_SYM(info)	((info)>>8)
+#define	ELF32_M_SIZE(info)	((unsigned char)(info))
+#define	ELF32_M_INFO(sym, size)	(((sym)<<8)+(unsigned char)(size))
+
+/*
+ *	Hardware/Software capabilities entry
+ */
+typedef struct {
+	Elf32_Word	c_tag;		/* how to interpret value */
+	union {
+		Elf32_Word	c_val;
+		Elf32_Addr	c_ptr;
+	} c_un;
+} Elf32_Cap;
+
+/*
  * Symbol table entries.
  */
 
 typedef struct {
 	Elf32_Word	st_name;	/* String table index of name. */
 	Elf32_Addr	st_value;	/* Symbol value. */
-	Elf32_Size	st_size;	/* Size of associated object. */
+	Elf32_Word	st_size;	/* Size of associated object. */
 	unsigned char	st_info;	/* Type and binding information. */
 	unsigned char	st_other;	/* Reserved (not used). */
 	Elf32_Half	st_shndx;	/* Section index of symbol. */
@@ -203,5 +259,11 @@ typedef struct {
 	Elf32_Half	si_boundto;	/* direct bindings - symbol bound to */
 	Elf32_Half	si_flags;	/* per symbol flags */
 } Elf32_Syminfo;
+
+typedef struct {
+	Elf32_Word	ch_type;
+	Elf32_Word	ch_size;
+	Elf32_Word	ch_addralign;
+} Elf32_Chdr;
 
 #endif /* !_SYS_ELF32_H_ */
