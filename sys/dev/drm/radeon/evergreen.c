@@ -5248,7 +5248,7 @@ int evergreen_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-#ifdef __DragonFly__
+#if 0 && defined(__DragonFly__)
 	/*
 	   There are unresolved crashes on evergreen hardware,
 	   tell userland acceleration is not working properly
