@@ -31,7 +31,7 @@
 #ifndef _SYMTAB_H_
 #define _SYMTAB_H_
 
-#if 1
+#if 0 /** revert **/
 #define	symtab_create	__ei_symtab_create
 #define	symtab_destroy	__ei_symtab_destroy
 #define	symtab_find	__ei_symtab_find
