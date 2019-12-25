@@ -16,6 +16,7 @@
 # libsbuf must be built before libcam.
 # libpcap must be built before libipfw3.
 # libpthread must be built before librt, and libusb.
+# libelf must be built before libexecinfo.
 #
 # Otherwise, the SUBDIR list should be in alphabetical order.
 
@@ -39,6 +40,7 @@ SUBDIR_ORDERED= \
 	libprop \
 	librt \
 	libusb \
+	libelf \
 	libexecinfo
 
 SUBDIR=	${SUBDIR_ORDERED} \
