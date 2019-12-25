@@ -16,6 +16,7 @@
 # libsbuf must be built before libcam.
 # libpcap must be built before libipfw3.
 # libpthread must be built before librt, and libusb.
+# libelf must be built before libexecinfo.
 # libutil must be built before libssh.
 # libldns must be built before libssh.
 #
@@ -41,6 +42,7 @@ SUBDIR_ORDERED= \
 	libprop \
 	librt \
 	libusb \
+	libelf \
 	libexecinfo \
 	libldns \
 	libssh
