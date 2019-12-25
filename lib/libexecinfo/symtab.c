@@ -36,7 +36,7 @@
 #include <err.h>
 #include <dlfcn.h>
 
-#if 1
+#if 0 /** Revert Internalize libelf in symtab.c **/
 #include "private_libelf.h"
 #else
 #include <libelf.h>
