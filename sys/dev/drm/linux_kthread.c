@@ -24,11 +24,12 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/lock.h>
+#include <sys/kthread.h>
+
 #include <linux/kthread.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-
-#include <sys/kthread.h>
 
 /*
    All Linux threads/processes have an associated task_struct
@@ -68,7 +69,7 @@ kthread_run(int (*lfn)(void *), void *data, const char *namefmt, ...)
 
 	task->kt_fn = lfn;
 	task->kt_fndata = data;
-	spin_init(&task->kt_spin, "tspin1");
+	lockinit(&task->kt_spin, "tspin1", 0, 0);
 
 	/* Start the thread here */
 	lwkt_schedule(td);

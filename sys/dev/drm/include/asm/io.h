@@ -35,77 +35,99 @@
 #include <linux/string.h>
 #include <linux/types.h>
 
+#if 0
 #undef readb
 static inline u8
 readb(const volatile void __iomem *addr)
 {
 	return *(const volatile u8*)addr;
 }
+#endif
 
+#if 0
 #undef readw
 static inline u16
 readw(const volatile void __iomem *addr)
 {
 	return *(const volatile u16*)addr;
 }
+#endif
 
+#if 0
 #undef readl
 static inline u32
 readl(const volatile void __iomem *addr)
 {
 	return *(const volatile u32*)addr;
 }
+#endif
 
+#if 0
 #undef writeb
 static inline void
 writeb(u8 value, volatile void __iomem *addr)
 {
 	*(volatile uint8_t *)addr = value;
 }
+#endif
 
+#if 0
 #undef writew
 static inline void
 writew(u16 value, volatile void __iomem *addr)
 {
 	*(volatile uint16_t *)addr = value;
 }
+#endif
 
+#if 0
 #undef writel
 static inline void
 writel(u32 value, volatile void __iomem *addr)
 {
 	*(volatile uint32_t *)addr = value;
 }
+#endif
 
+#if 0
 #define writel_relaxed(v, a)	writel(v, a)
+#endif
 
+#if 0
 #undef writeq
 static inline void
 writeq(u64 value, volatile void __iomem *addr)
 {
 	*(volatile uint64_t *)addr = value;
 }
+#endif
 
-#define ioread8(addr)		*(volatile uint8_t *)((char *)addr)
-#define ioread16(addr)		*(volatile uint16_t *)((char *)addr)
-#define ioread32(addr)		*(volatile uint32_t *)((char *)addr)
+// #define ioread8(addr)		*(volatile uint8_t *)((char *)addr)
+// #define ioread16(addr)		*(volatile uint16_t *)((char *)addr)
+// #define ioread32(addr)		*(volatile uint32_t *)((char *)addr)
 
+#if 0
 #define iowrite8(data, addr)					\
 	do {							\
 		*(volatile uint8_t *)((char *)addr) = data;	\
 	} while (0)
+#endif
 
+#if 0
 #define iowrite16(data, addr)					\
 	do {							\
 		*(volatile uint16_t *)((char *)addr) = data;	\
 	} while (0)
+#endif
 
+#if 0
 #define iowrite32(data, addr)					\
 	do {							\
 		*(volatile uint32_t *)((char *)addr) = data;	\
 	} while (0)
 
 #include <linux/vmalloc.h>
+#endif
 
 /* ioremap function family: map bus addresses into CPU space */
 
@@ -145,12 +167,16 @@ ioremap_wt(resource_size_t phys_addr, unsigned long size)
 
 void iounmap(void __iomem *ptr);
 
+#if 0
 /* XXX these should have volatile */
 #define	memset_io(a, b, c)	memset((a), (b), (c))
 #define	memcpy_fromio(a, b, c)	memcpy((a), (b), (c))
 #define	memcpy_toio(a, b, c)	memcpy((a), (b), (c))
+#endif
 
+#if 0 /* moved to linux/atomic.h */
 #define mmiowb cpu_sfence
+#endif
 
 int arch_io_reserve_memtype_wc(resource_size_t start, resource_size_t size);
 

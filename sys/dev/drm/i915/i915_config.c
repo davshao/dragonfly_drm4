@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: MIT
+/*
+ * Copyright © 2020 Intel Corporation
+ */
+
+#if 0
+
+#include "i915_drv.h"
+
+unsigned long
+i915_fence_context_timeout(const struct drm_i915_private *i915, u64 context)
+{
+	if (context && IS_ACTIVE(CONFIG_DRM_I915_FENCE_TIMEOUT))
+		return msecs_to_jiffies_timeout(CONFIG_DRM_I915_FENCE_TIMEOUT);
+
+	return 0;
+}
+
+#endif
