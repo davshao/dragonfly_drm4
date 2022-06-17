@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,16 +26,32 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_KGDB_H_
-#define _LINUX_KGDB_H_
+#ifndef _LINUX_KGDB_H
+#define _LINUX_KGDB_H
 
-#include <linux/linkage.h>
-#include <linux/init.h>
-#include <linux/atomic.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+
+// #include <linux/linkage.h>
+// #include <linux/init.h>
+// #include <linux/atomic.h>
 
 #include <ddb/ddb.h>
 
 #include "opt_ddb.h"
+
+#if defined(__OpenBSD__)
+
+static inline int
+in_dbg_master(void)
+{
+#ifdef DDB
+	return (db_active);
+#endif
+	return (0);
+}
+
+#else
 
 #ifdef DDB
 #define in_dbg_master()	db_active
@@ -41,4 +59,6 @@
 #define in_dbg_master()	0
 #endif
 
-#endif	/* _LINUX_KGDB_H_ */
+#endif
+
+#endif

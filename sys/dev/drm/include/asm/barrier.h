@@ -27,6 +27,7 @@
 #ifndef _ASM_BARRIER_H_
 #define _ASM_BARRIER_H_
 
+#if 0
 #define mb()		cpu_mfence()
 #define rmb()		cpu_lfence()
 #define wmb()		cpu_sfence()
@@ -44,5 +45,6 @@
 	cpu_ccfence();			\
 	WRITE_ONCE(*p, v);		\
 } while (0)
+#endif
 
 #endif	/* _ASM_BARRIER_H_ */

@@ -1071,7 +1071,7 @@ static int amdgpu_uvd_send_msg(struct amdgpu_ring *ring, struct amdgpu_bo *bo,
 	ib->length_dw = 16;
 
 	if (direct) {
-		r = reservation_object_wait_timeout_rcu(bo->tbo.resv,
+		r = dma_resv_wait_timeout(bo->tbo.resv,
 							true, false,
 							msecs_to_jiffies(10));
 		if (r == 0)

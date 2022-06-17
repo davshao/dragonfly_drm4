@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2019-2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,25 +26,47 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_SMP_H_
-#define _LINUX_SMP_H_
+#ifndef _LINUX_SMP_H
+#define _LINUX_SMP_H
 
-#include <linux/errno.h>
-#include <linux/types.h>
-#include <linux/list.h>
+#if defined(__OpenBSD__)
 #include <linux/cpumask.h>
-#include <linux/init.h>
-#include <linux/llist.h>
+
+/* sparc64 cpu.h needs time.h and siginfo.h (indirect via param.h) */
+#include <sys/param.h>
+#include <machine/cpu.h>
+#else
+#include <machine/cpufunc.h>
+#endif
+
+// #include <linux/errno.h>
+// #include <linux/types.h>
+// #include <linux/list.h>
+#include <linux/cpumask.h>
+// #include <linux/init.h>
+// #include <linux/llist.h>
 
 #include <linux/preempt.h>
-#include <linux/kernel.h>
-#include <linux/compiler.h>
-#include <linux/thread_info.h>
+// #include <linux/kernel.h>
+// #include <linux/compiler.h>
+// #include <linux/thread_info.h>
 
-static inline uint32_t smp_processor_id(void)
+#if defined(__OpenBSD__)
+#define smp_processor_id()	(curcpu()->ci_cpuid)
+#else
+static inline uint32_t
+smp_processor_id(void)
 {
 	return mycpuid;
 }
+#endif
+
+#if defined(__OpenBSD__)
+
+#define get_cpu()		cpu_number()
+#define put_cpu()
+
+#else
 
 static inline uint32_t get_cpu(void)
 {
@@ -54,4 +78,6 @@ static inline uint32_t get_cpu(void)
 
 #define put_cpu()	preempt_enable()
 
-#endif	/* _LINUX_SMP_H_ */
+#endif
+
+#endif

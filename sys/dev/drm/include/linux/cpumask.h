@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2018-2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,14 +26,18 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_CPUMASK_H_
-#define _LINUX_CPUMASK_H_
+#ifndef _LINUX_CPUMASK_H
+#define _LINUX_CPUMASK_H
 
-#include <linux/kernel.h>
-#include <linux/threads.h>
+// #include <linux/kernel.h>
+// #include <linux/threads.h>
 #include <linux/bitmap.h>
 #include <linux/bug.h>
 
 struct cpumask {};
 
-#endif	/* _LINUX_CPUMASK_H_ */
+/* amd/admgpu/amdkfd/kfd_crat.c and kfd_topology.c
+ * and i915/i915_pm.c
+ * have several *cpumask* functions not implemented
+ */
+#endif

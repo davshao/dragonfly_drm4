@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2016-2019 François Tigeot
  * All rights reserved.
@@ -24,8 +26,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_DMA_DIRECTION_H_
-#define _LINUX_DMA_DIRECTION_H_
+#ifndef _LINUX_DMA_DIRECTION_H
+#define _LINUX_DMA_DIRECTION_H
 
 enum dma_data_direction {
 	DMA_BIDIRECTIONAL = 0,
@@ -33,4 +35,4 @@ enum dma_data_direction {
 	DMA_NONE = 3,
 };
 
-#endif	/* _LINUX_DMA_DIRECTION_H_ */
+#endif

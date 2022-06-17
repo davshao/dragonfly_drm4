@@ -1,3 +1,20 @@
+/*	$OpenBSD: scatterlist.h,v 1.4 2021/07/07 02:38:36 jsg Exp $	*/
+/*
+ * Copyright (c) 2013, 2014, 2015 Mark Kettenis
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
 /*
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
@@ -30,14 +47,14 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef	_LINUX_SCATTERLIST_H_
-#define	_LINUX_SCATTERLIST_H_
+#ifndef _LINUX_SCATTERLIST_H
+#define _LINUX_SCATTERLIST_H
 
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/bug.h>
 #include <linux/mm.h>
-#include <asm/io.h>
+// #include <asm/io.h>
 
 /*
  * SG table design.
@@ -54,29 +71,84 @@
  */
 
 struct scatterlist {
+#if defined(__OpenBSD__)
+	struct vm_page *__page;
+#else
 	union {
 		struct page		*page;
 		struct scatterlist	*sg;
 	} sl_un;
-	unsigned long	offset;
-	uint32_t	length;
-	dma_addr_t	dma_address;
-	uint32_t	flags;
+#endif
+	dma_addr_t dma_address;
+#if defined(__OpenBSD__)
+	unsigned int offset;
+#else
+	unsigned long offset;
+#endif
+	unsigned int length;
+	uint32_t flags;
+	bool end;
 };
 
 struct sg_table {
-	struct scatterlist *sgl;        /* the list */
-	unsigned int nents;             /* number of mapped entries */
-	unsigned int orig_nents;        /* original size of list */
+	struct scatterlist *sgl;
+	unsigned int nents;
+	unsigned int orig_nents;
 };
 
 struct sg_page_iter {
-	struct scatterlist	*sg;
-	unsigned int		sg_pgoffset;	/* page index */
-	unsigned int		maxents;
-	unsigned int		__nents;
-	int			__pg_advance;
+	struct scatterlist *sg;
+	unsigned int sg_pgoffset;
+	unsigned int __nents;
+	unsigned int maxents;
+	int __pg_advance;
 };
+
+#define	SG_END		0x01
+#define	SG_CHAIN	0x02
+
+#if defined(__OpenBSD__)
+#define sg_is_chain(sg)		false
+#else
+static inline bool
+sg_is_chain(struct scatterlist *sg)
+{
+	return (sg->flags & SG_CHAIN);
+}
+#endif
+
+#if defined(__OpenBSD__)
+#define sg_is_last(sg)		((sg)->end)
+#else
+static inline bool
+sg_is_last(struct scatterlist *sg)
+{
+	return (sg->flags & SG_END);
+}
+#endif
+
+#if defined(__OpenBSD__)
+#define sg_chain_ptr(sg)	NULL
+#else
+static inline struct scatterlist *
+sg_chain_ptr(struct scatterlist *sg)
+{
+	return sg->sl_un.sg;
+}
+#endif
+
+#define	sg_scatternext(sgl)	(sgl)->sl_un.sg
+
+static inline struct scatterlist *
+sg_next(struct scatterlist *sgl)
+{
+	if (sgl->flags & SG_END)
+		return (NULL);
+	sgl++;
+	if (sgl->flags & SG_CHAIN)
+		sgl = sg_scatternext(sgl);
+	return (sgl);
+}
 
 #define SCATTERLIST_MAX_SEGMENT	(UINT_MAX & LINUX_PAGE_MASK)
 
@@ -86,170 +158,117 @@ struct sg_page_iter {
  */
 #define SG_MAX_SINGLE_ALLOC             (PAGE_SIZE / sizeof(struct scatterlist))
 
-#define	sg_dma_address(sg)	(sg)->dma_address
-#define	sg_dma_len(sg)		(sg)->length
-#define	sg_page(sg)		(sg)->sl_un.page
-#define	sg_scatternext(sg)	(sg)->sl_un.sg
+int sg_alloc_table(struct sg_table *, unsigned int, gfp_t);
+void sg_free_table(struct sg_table *);
 
-#define	SG_END		0x01
-#define	SG_CHAIN	0x02
 
 static inline void
-sg_set_page(struct scatterlist *sg, struct page *page, unsigned int len,
-    unsigned int offset)
+sg_mark_end(struct scatterlist *sgl)
 {
-	sg_page(sg) = page;
-	sg_dma_len(sg) = len;
-	sg->offset = offset;
+	sgl->end = true;
+        sgl->flags = SG_END;
+}
+
+static inline void
+__sg_page_iter_start(struct sg_page_iter *iter, struct scatterlist *sgl,
+    unsigned int nents, unsigned long pgoffset)
+{
+	iter->sg = sgl;
+	iter->sg_pgoffset = pgoffset;
+	iter->__nents = nents;
+	iter->__pg_advance = 0;
+}
+
+
+static inline int
+sg_page_count(struct scatterlist *sg)
+{
+	return PAGE_ALIGN(sg->offset + sg->length) >> PAGE_SHIFT;
+}
+
+static inline bool
+__sg_page_iter_next(struct sg_page_iter *iter)
+{
+	if (iter->__nents == 0)
+		return (false);
+	if (iter->sg == NULL)
+		return (false);
+
+	iter->sg_pgoffset += iter->__pg_advance;
+	iter->__pg_advance = 1;
+
+	while (iter->sg_pgoffset >= sg_page_count(iter->sg)) {
+		iter->sg_pgoffset -= sg_page_count(iter->sg);
+		iter->sg = sg_next(iter->sg);
+		if (--iter->__nents == 0)
+			return (false);
+		if (iter->sg == NULL)
+			return (false);
+	}
+	return (true);
+}
+
+static inline dma_addr_t
+sg_page_iter_dma_address(struct sg_page_iter *spi)
+{
+	return spi->sg->dma_address + (spi->sg_pgoffset << PAGE_SHIFT);
+}
+
+#if defined(__OpenBSD__)
+static inline struct vm_page *
+sg_page(struct scatterlist *sgl)
+{
+	return sgl->__page;
+}
+#else
+#define	sg_page(sgl)		(sgl)->sl_un.page
+#endif
+
+static inline struct page *
+sg_page_iter_page(struct sg_page_iter *piter)
+{
+	return nth_page(sg_page(piter->sg), piter->sg_pgoffset);
+}
+
+static inline void
+sg_assign_page(struct scatterlist *sgl, struct page *page)
+{
+#if defined(__OpenBSD__)
+	sgl->__page = page;
+#else
+	sgl->sl_un.page = page;
+#endif
+}
+
+#define	sg_dma_len(sg)		(sg)->length
+
+static inline void
+sg_set_page(struct scatterlist *sgl, struct page *page,
+    unsigned int length, unsigned int offset)
+{
+#if defined(__OpenBSD__)
+	sgl->__page = page;
+#else
+	sg_page(sgl) = page;
+#endif
+#if defined(__OpenBSD__)
+	sgl->dma_address = page ? VM_PAGE_TO_PHYS(page) : 0;
+#else /* not sure */
+	sgl->dma_address = page ? VM_PAGE_TO_PHYS(&page->pa_vmpage) : 0;
+#endif
+	sgl->offset = offset;
+	sg_dma_len(sgl) = length;
 	if (offset > PAGE_SIZE)
 		panic("sg_set_page: Invalid offset %d\n", offset);
-}
-
-static inline void
-sg_init_table(struct scatterlist *sg, unsigned int nents)
-{
-	bzero(sg, sizeof(*sg) * nents);
-	sg[nents - 1].flags = SG_END;
-}
-
-static inline struct scatterlist *
-sg_next(struct scatterlist *sg)
-{
-	if (sg->flags & SG_END)
-		return (NULL);
-	sg++;
-	if (sg->flags & SG_CHAIN)
-		sg = sg_scatternext(sg);
-	return (sg);
-}
-
-static inline vm_paddr_t
-sg_phys(struct scatterlist *sg)
-{
-	return ((struct vm_page *)sg_page(sg))->phys_addr + sg->offset;
-}
-
-/**
- * sg_chain - Chain two sglists together
- * @prv:        First scatterlist
- * @prv_nents:  Number of entries in prv
- * @sgl:        Second scatterlist
- *
- * Description:
- *   Links @prv@ and @sgl@ together, to form a longer scatterlist.
- *
- **/
-static inline void
-sg_chain(struct scatterlist *prv, unsigned int prv_nents,
-					struct scatterlist *sgl)
-{
-/*
- * offset and length are unused for chain entry.  Clear them.
- */
-	struct scatterlist *sg = &prv[prv_nents - 1];
-
-	sg->offset = 0;
-	sg->length = 0;
-
-	/*
-	 * Indicate a link pointer, and set the link to the second list.
-	 */
-	sg->flags = SG_CHAIN;
-	sg->sl_un.sg = sgl;
-}
-
-/**
- * sg_mark_end - Mark the end of the scatterlist
- * @sg:          SG entryScatterlist
- *
- * Description:
- *   Marks the passed in sg entry as the termination point for the sg
- *   table. A call to sg_next() on this entry will return NULL.
- *
- **/
-static inline void sg_mark_end(struct scatterlist *sg)
-{
-        sg->flags = SG_END;
-}
-
-/**
- * __sg_free_table - Free a previously mapped sg table
- * @table:      The sg table header to use
- * @max_ents:   The maximum number of entries per single scatterlist
- *
- *  Description:
- *    Free an sg table previously allocated and setup with
- *    __sg_alloc_table().  The @max_ents value must be identical to
- *    that previously used with __sg_alloc_table().
- *
- **/
-void __sg_free_table(struct sg_table *table, unsigned int max_ents);
-
-/**
- * sg_free_table - Free a previously allocated sg table
- * @table:      The mapped sg table header
- *
- **/
-static inline void
-sg_free_table(struct sg_table *table)
-{
-	__sg_free_table(table, SG_MAX_SINGLE_ALLOC);
-}
-
-int __sg_alloc_table(struct sg_table *table, unsigned int nents,
-		unsigned int max_ents, gfp_t gfp_mask);
-
-/**
- * sg_alloc_table - Allocate and initialize an sg table
- * @table:      The sg table header to use
- * @nents:      Number of entries in sg list
- * @gfp_mask:   GFP allocation mask
- *
- *  Description:
- *    Allocate and initialize an sg table. If @nents@ is larger than
- *    SG_MAX_SINGLE_ALLOC a chained sg table will be setup.
- *
- **/
-
-static inline int
-sg_alloc_table(struct sg_table *table, unsigned int nents, gfp_t gfp_mask)
-{
-	int ret;
-
-	ret = __sg_alloc_table(table, nents, SG_MAX_SINGLE_ALLOC,
-		gfp_mask);
-	if (unlikely(ret))
-		__sg_free_table(table, SG_MAX_SINGLE_ALLOC);
-
-	return ret;
-}
-
-static inline int
-sg_nents(struct scatterlist *sg)
-{
-	int nents;
-	for (nents = 0; sg; sg = sg_next(sg))
-		nents++;
-	return nents;
-}
-
-static inline void
-__sg_page_iter_start(struct sg_page_iter *piter,
-			  struct scatterlist *sglist, unsigned int nents,
-			  unsigned long pgoffset)
-{
-	piter->__pg_advance = 0;
-	piter->__nents = nents;
-
-	piter->sg = sglist;
-	piter->sg_pgoffset = pgoffset;
+/* not sure */
+	sgl->end = false;
 }
 
 /*
  * Iterate pages in sg list.
  */
 static inline void
-_sg_iter_next(struct sg_page_iter *iter)
+__sg_iter_next(struct sg_page_iter *iter)
 {
 	struct scatterlist *sg;
 	unsigned int pgcount;
@@ -269,34 +288,6 @@ _sg_iter_next(struct sg_page_iter *iter)
 	iter->sg = sg;
 }
 
-static inline int
-sg_page_count(struct scatterlist *sg)
-{
-	return PAGE_ALIGN(sg->offset + sg->length) >> PAGE_SHIFT;
-}
-
-static inline bool
-__sg_page_iter_next(struct sg_page_iter *piter)
-{
-	if (piter->__nents == 0)
-		return (false);
-	if (piter->sg == NULL)
-		return (false);
-
-	piter->sg_pgoffset += piter->__pg_advance;
-	piter->__pg_advance = 1;
-
-	while (piter->sg_pgoffset >= sg_page_count(piter->sg)) {
-		piter->sg_pgoffset -= sg_page_count(piter->sg);
-		piter->sg = sg_next(piter->sg);
-		if (--piter->__nents == 0)
-			return (false);
-		if (piter->sg == NULL)
-			return (false);
-	}
-	return (true);
-}
-
 /*
  * NOTE: pgoffset is really a page index, not a byte offset.
  */
@@ -307,12 +298,12 @@ _sg_iter_init(struct scatterlist *sgl, struct sg_page_iter *iter,
 	if (nents) {
 		/*
 		 * Nominal case.  Note subtract 1 from starting page index
-		 * for initial _sg_iter_next() call.
+		 * for initial __sg_iter_next() call.
 		 */
 		iter->sg = sgl;
 		iter->sg_pgoffset = pgoffset - 1;
 		iter->maxents = nents;
-		_sg_iter_next(iter);
+		__sg_iter_next(iter);
 	} else {
 		/*
 		 * Degenerate case
@@ -323,24 +314,37 @@ _sg_iter_init(struct scatterlist *sgl, struct sg_page_iter *iter,
 	}
 }
 
-static inline struct page *
-sg_page_iter_page(struct sg_page_iter *piter)
-{
-	return nth_page(sg_page(piter->sg), piter->sg_pgoffset);
-}
+#define	sg_dma_address(sg)	(sg)->dma_address
 
-static inline dma_addr_t
-sg_page_iter_dma_address(struct sg_page_iter *spi)
-{
-	return spi->sg->dma_address + (spi->sg_pgoffset << PAGE_SHIFT);
-}
+#define	for_each_sg(sgl, sg, nents, i)				\
+	for (i = 0, sg = (sgl); i < (nents); i++, sg = sg_next(sg))
 
 #define for_each_sg_page(sgl, iter, nents, pgoffset)			\
 	for (_sg_iter_init(sgl, iter, nents, pgoffset);			\
-	     (iter)->sg; _sg_iter_next(iter))
+	     (iter)->sg; __sg_iter_next(iter))
 
-#define	for_each_sg(sglist, sg, sgmax, _itr)				\
-	for (_itr = 0, sg = (sglist); _itr < (sgmax); _itr++, sg = sg_next(sg))
+static inline void
+sg_init_table(struct scatterlist *sg, unsigned int nents)
+{
+	bzero(sg, sizeof(*sg) * nents);
+	sg[nents - 1].flags = SG_END;
+}
+
+
+static inline vm_paddr_t
+sg_phys(struct scatterlist *sg)
+{
+	return ((struct vm_page *)sg_page(sg))->phys_addr + sg->offset;
+}
+
+static inline int
+sg_nents(struct scatterlist *sg)
+{
+	int nents;
+	for (nents = 0; sg; sg = sg_next(sg))
+		nents++;
+	return nents;
+}
 
 /*
  *
@@ -367,24 +371,6 @@ sg_copy_to_buffer(struct scatterlist *sgl, unsigned int nents,
 	return (sg_pcopy_to_buffer(sgl, nents, buf, buflen, 0));
 }
 
-static inline bool
-sg_is_last(struct scatterlist *sg)
-{
-	return (sg->flags & SG_END);
-}
-
-static inline bool
-sg_is_chain(struct scatterlist *sg)
-{
-	return (sg->flags & SG_CHAIN);
-}
-
-static inline struct scatterlist *
-sg_chain_ptr(struct scatterlist *sg)
-{
-	return sg->sl_un.sg;
-}
-
 static inline int
 sg_alloc_table_from_pages(struct sg_table *sgt,
 	struct page **pages, unsigned int n_pages,
@@ -399,4 +385,4 @@ int __sg_alloc_table_from_pages(struct sg_table *sgt, struct page **pages,
 				unsigned long size, unsigned int max_segment,
 				gfp_t gfp_mask);
 
-#endif	/* _LINUX_SCATTERLIST_H_ */
+#endif

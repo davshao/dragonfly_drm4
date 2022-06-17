@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*-
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
@@ -28,50 +30,120 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef	_LINUX_COMPILER_H_
-#define	_LINUX_COMPILER_H_
+#ifndef _LINUX_COMPILER_H
+#define _LINUX_COMPILER_H
 
 #include <sys/cdefs.h>
 
+#include <linux/kconfig.h>
+
+#define unlikely(x)	__builtin_expect(!!(x), 0)
+#define likely(x)	__builtin_expect(!!(x), 1)
+
+#define __force
+#define __acquires(x)
+#define __releases(x)
+
+#if defined(__OpenBSD__)
+#define __read_mostly
+#elif defined(__DragonFly__)
+/* already defined as __section(".data.read_mostly") in sys/systm.h */
+#endif
+
+#define __iomem
+
+#if defined(__OpenBSD__)
+#define __must_check
+#else
+/* DragonFly __heedresult probably defined as
+ * __attribute__((__warn_unused_result__)) in sys/cdefs.h */
+#define __must_check			__heedresult
+#endif
+
+#define __init
+#define __exit
+#define __deprecated
+
+#if defined(__OpenBSD__)
+#define __always_unused	__attribute__((__unused__))
+#define __maybe_unused	__attribute__((__unused__))
+#else
+/* On DragonFly __unused defined in sys/cdefs.h */
+#define __always_unused			__unused
+#define __maybe_unused			__unused
+#endif
+
+#if defined(__OpenBSD__)
+#define __always_inline	inline __attribute__((__always_inline__))
+#else
+/* On DragonFly probably already defined in sys/cdefs.h */
+#undef __always_inline
+#define	__always_inline			inline
+// #define __always_inline	__attribute__((__always_inline__))
+#endif
+
+#define noinline	__attribute__((__noinline__))
+#define noinline_for_stack	 __attribute__((__noinline__))
+#define fallthrough	do {} while (0)
+
+#ifndef __user
 #define __user
+#endif
+
+#if defined(__OpenBSD__)
+#define barrier()	__asm volatile("" : : : "memory")
+#else
+#define barrier()	cpu_ccfence()
+#endif
+
+#if defined(__OpenBSD__)
+#define __printf(x, y)	__attribute__((__format__(__kprintf__,x,y)))
+#else
+#define __printf(a,b)			__printflike(a,b)
+#endif
+
+#if defined(__OpenBSD__)
+/* The Linux code doesn't meet our usual standards! */
+#ifdef __clang__
+#pragma clang diagnostic ignored "-Winitializer-overrides"
+#pragma clang diagnostic ignored "-Wunused-function"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#pragma clang diagnostic ignored "-Wgnu-variable-sized-type-not-at-end"
+#else
+#pragma GCC diagnostic ignored "-Wformat-zero-length"
+#endif
+#endif
+
+#if 0
 #define __kernel
 #define __safe
-#define __force
+
 #define __nocast
-#define __iomem
 #define __chk_user_ptr(x)		0
 #define __chk_io_ptr(x)			0
 #define __builtin_warning(x, y...)	(1)
-#define __acquires(x)
-#define __releases(x)
+
 #define __acquire(x)			0
 #define __release(x)			0
 #define __cond_lock(x,c)		(c)
 #define	__bitwise
 #define __devinitdata
-#define __init
 #define	__devinit
 #define	__devexit
-#define __exit
-#define	__stringify(x)			#x
-#define	__attribute_const__		__attribute__((__const__))
-#undef __always_inline
-#define	__always_inline			inline
-#define noinline			__attribute__((noinline))
+#endif
 
-#define	likely(x)			__builtin_expect(!!(x), 1)
-#define	unlikely(x)			__builtin_expect(!!(x), 0)
+#if 0
+#ifndef __stringify
+#define	__stringify(x)			#x
+#endif
+#endif
+
 #define typeof(x)			__typeof(x)
 
-#define __maybe_unused			__unused
-#define __always_unused			__unused
+#if 0
+#define	__attribute_const__		__attribute__((__const__))
 #define __malloc
-#define __must_check			__heedresult
-
-#define __printf(a,b)			__printflike(a,b)
-
-
-#define barrier()	cpu_ccfence()
+#endif
 
 #ifdef _KERNEL		/* This file is included by kdump(1) */
 
@@ -150,7 +222,9 @@ __volatile_write(volatile void *var, int size, void *value)
 	result.initial_type;					\
 })
 
+#if 0
 #define __rcu
+#endif
 
 /* Workaround to protect from the 'DEBUG' kernel config option */
 #undef DEBUG
@@ -168,4 +242,4 @@ do {					\
 } while (0)
 #endif
 
-#endif	/* _LINUX_COMPILER_H_ */
+#endif

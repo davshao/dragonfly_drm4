@@ -23,9 +23,203 @@
  * Rob Clark <robdclark@gmail.com>
  */
 
+#ifdef __linux__
+#define DEBUG /* for pr_debug() */
+#endif
+
+#include <sys/stdarg.h>
+
+#include <linux/io.h>
+#include <linux/moduleparam.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
+
 #include <drm/drmP.h>
+#include <drm/drm.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_print.h>
+
+#if defined(__OpenBSD__)
+/*
+ * __drm_debug: Enable debug output.
+ * Bitmask of DRM_UT_x. See include/drm/drm_print.h for details.
+ */
+#ifdef DRMDEBUG
+unsigned int __drm_debug = DRM_UT_DRIVER | DRM_UT_KMS;
+#else
+unsigned int __drm_debug;
+#endif
+EXPORT_SYMBOL(__drm_debug);
+
+MODULE_PARM_DESC(debug, "Enable debug output, where each bit enables a debug category.\n"
+"\t\tBit 0 (0x01)  will enable CORE messages (drm core code)\n"
+"\t\tBit 1 (0x02)  will enable DRIVER messages (drm controller code)\n"
+"\t\tBit 2 (0x04)  will enable KMS messages (modesetting code)\n"
+"\t\tBit 3 (0x08)  will enable PRIME messages (prime code)\n"
+"\t\tBit 4 (0x10)  will enable ATOMIC messages (atomic code)\n"
+"\t\tBit 5 (0x20)  will enable VBL messages (vblank code)\n"
+"\t\tBit 7 (0x80)  will enable LEASE messages (leasing code)\n"
+"\t\tBit 8 (0x100) will enable DP messages (displayport code)");
+module_param_named(debug, __drm_debug, int, 0600);
+#else /* previous DragonFly */
+/*
+ * drm_debug: Enable debug output.
+ * Bitmask of DRM_UT_x. See include/drm/drmP.h for details.
+ */
+#ifdef __DragonFly__
+/* Provides three levels of debug: off, minimal, verbose */
+#if DRM_DEBUG_DEFAULT_ON == 1
+#define DRM_DEBUGBITS_ON (DRM_UT_CORE | DRM_UT_DRIVER | DRM_UT_KMS |	\
+			  DRM_UT_PRIME| DRM_UT_ATOMIC | DRM_UT_FIOCTL)
+#elif DRM_DEBUG_DEFAULT_ON == 2
+#define DRM_DEBUGBITS_ON (DRM_UT_CORE | DRM_UT_DRIVER | DRM_UT_KMS |	\
+			  DRM_UT_PRIME| DRM_UT_ATOMIC | DRM_UT_FIOCTL |	\
+			  DRM_UT_PID  | DRM_UT_IOCTL  )
+#else
+#define DRM_DEBUGBITS_ON (0x0)
+#endif
+unsigned int drm_debug = DRM_DEBUGBITS_ON;	/* defaults to 0 */
+unsigned int __drm_debug = DRM_UT_DRIVER | DRM_UT_KMS;
+#else
+unsigned int drm_debug = 0;
+unsigned int __drm_debug = 0;
+#endif /* __DragonFly__ */
+EXPORT_SYMBOL(drm_debug);
+EXPORT_SYMBOL(__drm_debug);
+
+MODULE_AUTHOR("Gareth Hughes, Leif Delgass, José Fonseca, Jon Smirl");
+MODULE_DESCRIPTION("DRM shared core routines");
+MODULE_PARM_DESC(debug, "Enable debug output, where each bit enables a debug category.\n"
+"\t\tBit 0 (0x01) will enable CORE messages (drm core code)\n"
+"\t\tBit 1 (0x02) will enable DRIVER messages (drm controller code)\n"
+"\t\tBit 2 (0x04) will enable KMS messages (modesetting code)\n"
+"\t\tBit 3 (0x08) will enable PRIME messages (prime code)\n"
+"\t\tBit 4 (0x10) will enable ATOMIC messages (atomic code)\n"
+"\t\tBit 5 (0x20) will enable VBL messages (vblank code)\n"
+"\t\tBit 7 (0x80) will enable LEASE messages (leasing code)");
+module_param_named(debug, drm_debug, int, 0600);
+#endif /* previous DragonFly */
+
+void drm_err(const char *func, const char *format, ...)
+{
+	va_list args;
+
+	kprintf("error: [" DRM_NAME ":pid%d:%s] *ERROR* ", DRM_CURRENTPID, func);
+
+	va_start(args, format);
+	kvprintf(format, args);
+	va_end(args);
+}
+
+void drm_ut_debug_printk(const char *function_name, const char *format, ...)
+{
+	va_list args;
+
+	if (unlikely(drm_debug & DRM_UT_PID)) {
+		kprintf("[" DRM_NAME ":pid%d:%s] ",
+		    DRM_CURRENTPID, function_name);
+	} else {
+		kprintf("[" DRM_NAME ":%s] ", function_name);
+	}
+
+	va_start(args, format);
+	kvprintf(format, args);
+	va_end(args);
+}
+
+void __drm_puts_coredump(struct drm_printer *p, const char *str)
+{
+	struct drm_print_iterator *iterator = p->arg;
+	ssize_t len;
+
+	if (!iterator->remain)
+		return;
+
+	if (iterator->offset < iterator->start) {
+		ssize_t copy;
+
+		len = strlen(str);
+
+		if (iterator->offset + len <= iterator->start) {
+			iterator->offset += len;
+			return;
+		}
+
+		copy = len - (iterator->start - iterator->offset);
+
+		if (copy > iterator->remain)
+			copy = iterator->remain;
+
+		/* Copy out the bit of the string that we need */
+		memcpy(iterator->data,
+			str + (iterator->start - iterator->offset), copy);
+
+		iterator->offset = iterator->start + copy;
+		iterator->remain -= copy;
+	} else {
+		ssize_t pos = iterator->offset - iterator->start;
+
+		len = min_t(ssize_t, strlen(str), iterator->remain);
+
+		memcpy(iterator->data + pos, str, len);
+
+		iterator->offset += len;
+		iterator->remain -= len;
+	}
+}
+EXPORT_SYMBOL(__drm_puts_coredump);
+
+void __drm_printfn_coredump(struct drm_printer *p, struct va_format *vaf)
+{
+	struct drm_print_iterator *iterator = p->arg;
+	size_t len;
+	char *buf;
+
+	if (!iterator->remain)
+		return;
+
+	/* Figure out how big the string will be */
+	len = snprintf(NULL, 0, "%pV", vaf);
+
+	/* This is the easiest path, we've already advanced beyond the offset */
+	if (iterator->offset + len <= iterator->start) {
+		iterator->offset += len;
+		return;
+	}
+
+	/* Then check if we can directly copy into the target buffer */
+	if ((iterator->offset >= iterator->start) && (len < iterator->remain)) {
+		ssize_t pos = iterator->offset - iterator->start;
+
+		snprintf(((char *) iterator->data) + pos,
+			iterator->remain, "%pV", vaf);
+
+		iterator->offset += len;
+		iterator->remain -= len;
+
+		return;
+	}
+
+	/*
+	 * Finally, hit the slow path and make a temporary string to copy over
+	 * using _drm_puts_coredump
+	 */
+	buf = __kmalloc(len + 1, M_DRM, GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
+	if (!buf)
+		return;
+
+	snprintf(buf, len + 1, "%pV", vaf);
+	__drm_puts_coredump(p, (const char *) buf);
+
+	kfree(buf);
+}
+EXPORT_SYMBOL(__drm_printfn_coredump);
+
+void __drm_puts_seq_file(struct drm_printer *p, const char *str)
+{
+	seq_puts((struct seq_file *)(p->arg), str);
+}
+EXPORT_SYMBOL(__drm_puts_seq_file);
 
 void __drm_printfn_seq_file(struct drm_printer *p, struct va_format *vaf)
 {
@@ -33,6 +227,7 @@ void __drm_printfn_seq_file(struct drm_printer *p, struct va_format *vaf)
 }
 EXPORT_SYMBOL(__drm_printfn_seq_file);
 
+#if defined(__linux__) || defined(__DragonFly__)
 void __drm_printfn_info(struct drm_printer *p, struct va_format *vaf)
 {
 	dev_info(p->arg, "[" DRM_NAME "] %pV", vaf);
@@ -45,6 +240,53 @@ void __drm_printfn_debug(struct drm_printer *p, struct va_format *vaf)
 }
 EXPORT_SYMBOL(__drm_printfn_debug);
 
+void __drm_printfn_err(struct drm_printer *p, struct va_format *vaf)
+{
+	pr_err("*ERROR* %s %pV", p->prefix, vaf);
+}
+EXPORT_SYMBOL(__drm_printfn_err);
+#else
+void __drm_printfn_info(struct drm_printer *p, struct va_format *vaf)
+{
+#ifdef DRMDEBUG
+	printf("[" DRM_NAME "] ");
+	vprintf(vaf->fmt, *vaf->va);
+#endif
+}
+
+void __drm_printfn_debug(struct drm_printer *p, struct va_format *vaf)
+{
+#ifdef DRMDEBUG
+	printf("%s ", p->prefix);
+	vprintf(vaf->fmt, *vaf->va);
+#endif
+}
+
+void __drm_printfn_err(struct drm_printer *p, struct va_format *vaf)
+{
+	printf("*ERROR* %s ", p->prefix);
+	vprintf(vaf->fmt, *vaf->va);
+}
+#endif
+
+/**
+ * drm_puts - print a const string to a &drm_printer stream
+ * @p: the &drm printer
+ * @str: const string
+ *
+ * Allow &drm_printer types that have a constant string
+ * option to use it.
+ */
+void drm_puts(struct drm_printer *p, const char *str)
+{
+	if (p->puts)
+		p->puts(p, str);
+	else
+		drm_printf(p, "%s", str);
+}
+EXPORT_SYMBOL(drm_puts);
+
+#if 0 /* previous DragonFly */
 /**
  * drm_printf - print to a &drm_printer stream
  * @p: the &drm_printer
@@ -62,3 +304,288 @@ void drm_printf(struct drm_printer *p, const char *f, ...)
 	va_end(args);
 }
 EXPORT_SYMBOL(drm_printf);
+#endif
+
+/**
+ * drm_printf - print to a &drm_printer stream
+ * @p: the &drm_printer
+ * @f: format string
+ */
+void drm_printf(struct drm_printer *p, const char *f, ...)
+{
+	va_list args;
+
+	va_start(args, f);
+	drm_vprintf(p, f, &args);
+	va_end(args);
+}
+EXPORT_SYMBOL(drm_printf);
+
+/**
+ * drm_print_bits - print bits to a &drm_printer stream
+ *
+ * Print bits (in flag fields for example) in human readable form.
+ *
+ * @p: the &drm_printer
+ * @value: field value.
+ * @bits: Array with bit names.
+ * @nbits: Size of bit names array.
+ */
+void drm_print_bits(struct drm_printer *p, unsigned long value,
+		    const char * const bits[], unsigned int nbits)
+{
+	bool first = true;
+	unsigned int i;
+
+	if (WARN_ON_ONCE(nbits > BITS_PER_TYPE(value)))
+		nbits = BITS_PER_TYPE(value);
+
+	for_each_set_bit(i, &value, nbits) {
+		if (WARN_ON_ONCE(!bits[i]))
+			continue;
+		drm_printf(p, "%s%s", first ? "" : ",",
+			   bits[i]);
+		first = false;
+	}
+	if (first)
+		drm_printf(p, "(none)");
+}
+EXPORT_SYMBOL(drm_print_bits);
+
+#ifdef __linux__
+void drm_dev_printk(const struct device *dev, const char *level,
+		    const char *format, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, format);
+	vaf.fmt = format;
+	vaf.va = &args;
+
+	if (dev)
+		dev_printk(level, dev, "[" DRM_NAME ":%ps] %pV",
+			   __builtin_return_address(0), &vaf);
+	else
+		printk("%s" "[" DRM_NAME ":%ps] %pV",
+		       level, __builtin_return_address(0), &vaf);
+
+	va_end(args);
+}
+EXPORT_SYMBOL(drm_dev_printk);
+
+void drm_dev_dbg(const struct device *dev, enum drm_debug_category category,
+		 const char *format, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	if (!drm_debug_enabled(category))
+		return;
+
+	va_start(args, format);
+	vaf.fmt = format;
+	vaf.va = &args;
+
+	if (dev)
+		dev_printk(KERN_DEBUG, dev, "[" DRM_NAME ":%ps] %pV",
+			   __builtin_return_address(0), &vaf);
+	else
+		printk(KERN_DEBUG "[" DRM_NAME ":%ps] %pV",
+		       __builtin_return_address(0), &vaf);
+
+	va_end(args);
+}
+EXPORT_SYMBOL(drm_dev_dbg);
+
+void __drm_dbg(enum drm_debug_category category, const char *format, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	if (!drm_debug_enabled(category))
+		return;
+
+	va_start(args, format);
+	vaf.fmt = format;
+	vaf.va = &args;
+
+	printk(KERN_DEBUG "[" DRM_NAME ":%ps] %pV",
+	       __builtin_return_address(0), &vaf);
+
+	va_end(args);
+}
+EXPORT_SYMBOL(__drm_dbg);
+
+void __drm_err(const char *format, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, format);
+	vaf.fmt = format;
+	vaf.va = &args;
+
+	printk(KERN_ERR "[" DRM_NAME ":%ps] *ERROR* %pV",
+	       __builtin_return_address(0), &vaf);
+
+	va_end(args);
+}
+EXPORT_SYMBOL(__drm_err);
+
+#else
+
+#if defined(__OpenBSD__) /* currently defined in drm_drv.h and drm_drv.c */
+void drm_dev_printk(const struct device *dev, const char *level,
+		    const char *format, ...)
+{
+	va_list args;
+
+#ifndef DRMDEBUG
+	if (level[0] == '\001') {
+		if (level[1] >= KERN_INFO[1] && level[1] < '9')
+			return;
+	}
+#endif
+
+	va_start(args, format);
+	kprintf("[" DRM_NAME "] ");
+	kvprintf(format, args);
+	va_end(args);
+}
+#else /* previous DragonFly */
+#define DRM_PRINTK_FMT "[" DRM_NAME ":%s]%s %pV"
+#define DRM_PRINTK_FMT_DFLY "[" DRM_NAME ":%s]%s "
+
+void drm_dev_printk(const struct device *dev, const char *level,
+		    unsigned int category, const char *function_name,
+		    const char *prefix, const char *format, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	if (category != DRM_UT_NONE && !(drm_debug & category))
+		return;
+
+	va_start(args, format);
+	vaf.fmt = format;
+	vaf.va = &args;
+
+	if (dev)
+#if 0
+		dev_printk(level, dev, DRM_PRINTK_FMT, function_name, prefix,
+			   &vaf);
+	else
+		printk("%s" DRM_PRINTK_FMT, level, function_name, prefix, &vaf);
+#else
+	{
+		kprintf("drm_dev_printk: ");
+		dev_printk(level, dev, DRM_PRINTK_FMT_DFLY, function_name, prefix);
+		kprintf(vaf.fmt, vaf.va);
+	} else {
+		kprintf("drm_dev_printk: ");
+		printk("%s" DRM_PRINTK_FMT_DFLY, level, function_name, prefix);
+		kprintf(vaf.fmt, vaf.va);
+	}
+#endif
+
+	va_end(args);
+}
+EXPORT_SYMBOL(drm_dev_printk);
+
+void drm_printk(const char *level, unsigned int category,
+		const char *format, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	if (category != DRM_UT_NONE && !(drm_debug & category))
+		return;
+
+	va_start(args, format);
+	vaf.fmt = format;
+	vaf.va = &args;
+
+#if 0
+	printk("%s" "[" DRM_NAME ":%ps]%s %pV",
+	       level, __builtin_return_address(0),
+	       strcmp(level, KERN_ERR) == 0 ? " *ERROR*" : "", &vaf);
+#else
+	printk("%s" "[" DRM_NAME ":%p]%s ",
+	       level, __builtin_return_address(0),
+	       strcmp(level, KERN_ERR) == 0 ? " *ERROR*" : "");
+	kprintf(vaf.fmt, vaf.va);
+#endif
+
+	va_end(args);
+}
+EXPORT_SYMBOL(drm_printk);
+#endif /* previous DragonFly */
+
+void drm_dev_dbg(const struct device *dev, enum drm_debug_category category,
+		 const char *format, ...)
+{
+	va_list args;
+
+	if (!drm_debug_enabled(category))
+		return;
+
+	va_start(args, format);
+	kprintf(KERN_DEBUG "[" DRM_NAME "] ");
+	kvprintf(format, args);
+	va_end(args);
+}
+
+void __drm_dbg(enum drm_debug_category category, const char *format, ...)
+{
+	va_list args;
+
+	if (!drm_debug_enabled(category))
+		return;
+
+	va_start(args, format);
+	kprintf(KERN_DEBUG "[" DRM_NAME "] ");
+	kvprintf(format, args);
+	va_end(args);
+}
+
+void __drm_err(const char *format, ...)
+{
+	va_list args;
+
+	va_start(args, format);
+	kprintf(KERN_ERR "[" DRM_NAME "] *ERROR* ");
+	kvprintf(format, args);
+	va_end(args);
+}
+#endif /* __linux__ */
+
+/**
+ * drm_print_regset32 - print the contents of registers to a
+ * &drm_printer stream.
+ *
+ * @p: the &drm printer
+ * @regset: the list of registers to print.
+ *
+ * Often in driver debug, it's useful to be able to either capture the
+ * contents of registers in the steady state using debugfs or at
+ * specific points during operation.  This lets the driver have a
+ * single list of registers for both.
+ */
+void drm_print_regset32(struct drm_printer *p, struct debugfs_regset32 *regset)
+{
+#ifdef __linux__
+	int namelen = 0;
+	int i;
+
+	for (i = 0; i < regset->nregs; i++)
+		namelen = max(namelen, (int)strlen(regset->regs[i].name));
+
+	for (i = 0; i < regset->nregs; i++) {
+		drm_printf(p, "%*s = 0x%08x\n",
+			   namelen, regset->regs[i].name,
+			   readl(regset->base + regset->regs[i].offset));
+	}
+#endif
+}
+EXPORT_SYMBOL(drm_print_regset32);

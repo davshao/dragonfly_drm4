@@ -112,6 +112,7 @@ wq_worker_thread(void *arg)
 	lockmgr(&worker->worker_lock, LK_RELEASE);
 }
 
+#if 0
 /*
  * Return false if work was already on a queue
  * Return true and queue it if this was not the case
@@ -147,7 +148,9 @@ queue_work(struct workqueue_struct *wq, struct work_struct *work)
 
 	return ret;
 }
+#endif
 
+#if 0
 static inline void
 _delayed_work_fn(void *arg)
 {
@@ -169,6 +172,7 @@ queue_delayed_work(struct workqueue_struct *wq, struct delayed_work *work,
 
 	return (!pending);
 }
+#endif
 
 static int
 init_workqueues(void *arg)
@@ -337,6 +341,7 @@ flush_work(struct work_struct *work)
 	return ret;
 }
 
+#if 0
 static inline bool
 _cancel_work(struct work_struct *work, bool sync_wait)
 {
@@ -386,7 +391,9 @@ _cancel_work(struct work_struct *work, bool sync_wait)
 
 	return ret;
 }
+#endif
 
+#if 0
 /*
  * If work was queued, remove it from the queue and return true.
  * If work was not queued, return false.
@@ -398,6 +405,7 @@ cancel_work_sync(struct work_struct *work)
 {
 	return _cancel_work(work, true);
 }
+#endif
 
 /* Return false if work wasn't pending
  * Return true if work was pending and canceled */

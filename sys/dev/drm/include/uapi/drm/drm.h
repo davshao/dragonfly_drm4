@@ -36,7 +36,11 @@
 #ifndef _DRM_H_
 #define _DRM_H_
 
-#if defined(__KERNEL__) || defined(__DragonFly__)
+#ifndef __user
+#define __user
+#endif
+
+#if defined(__linux__)
 
 #include <linux/types.h>
 #include <asm/ioctl.h>
@@ -55,7 +59,11 @@ typedef uint32_t __u32;
 typedef int64_t  __s64;
 typedef uint64_t __u64;
 typedef size_t   __kernel_size_t;
+#if defined(__DragonFly__)
+typedef unsigned int drm_handle_t;
+#else
 typedef unsigned long drm_handle_t;
+#endif
 
 #endif
 

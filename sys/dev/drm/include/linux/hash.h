@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2013 François Tigeot
  * All rights reserved.
@@ -24,33 +26,62 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_HASH_H_
-#define _LINUX_HASH_H_
+#ifndef _LINUX_HASH_H
+#define _LINUX_HASH_H
 
+#if defined(__OpenBSD__)
+#include <sys/types.h>
+#else
 #include <sys/hash.h>
+#endif
 
-static inline u64 hash_64(u64 val, unsigned int bits)
+#if defined(__OpenBSD__)
+/* 2^32 * ((sqrt(5) - 1) / 2) from Knuth */
+#define GOLDEN_RATIO_32 0x9e3779b9
+#endif
+
+static inline uint32_t
+hash_32(uint32_t val, unsigned int bits)
 {
-	u64 ret;
-
-	ret = (uint64_t)hash32_buf(&val, sizeof(val), bits);
-
-	return ret >> (64 - bits);
-}
-
-static inline u32 hash_32(u32 val, unsigned int bits)
-{
+#if defined(__OpenBSD__)
+	return (val * GOLDEN_RATIO_32) >> (32 - bits);
+#else
 	u32 ret;
 
 	ret = hash32_buf(&val, sizeof(val), bits);
 
 	return ret >> (32 - bits);
+#endif
 }
 
-#if BITS_PER_LONG == 64	/* amd64 */
+#if defined(__OpenBSD__)
+/* 2^64 * ((sqrt(5) - 1) / 2) from Knuth */
+#define GOLDEN_RATIO_64 0x9e3779b97f4a7c16ULL
+#endif
+
+#if defined(__OpenBSD__)
+static inline uint32_t
+#else
+static inline uint64_t
+#endif
+hash_64(uint64_t val, unsigned int bits)
+{
+#if defined(__OpenBSD__)
+	return (val * GOLDEN_RATIO_64) >> (64 - bits);
+#else
+	u64 ret;
+
+	ret = (uint64_t)hash32_buf(&val, sizeof(val), bits);
+
+	return ret >> (64 - bits);
+#endif
+}
+
+
+#ifdef __LP64__
 #define hash_long(val, bits) hash_64(val, bits)
-#else	/* i386 */
+#else
 #define hash_long(val, bits) hash_32(val, bits)
 #endif
 
-#endif	/* _LINUX_HASH_H_ */
+#endif

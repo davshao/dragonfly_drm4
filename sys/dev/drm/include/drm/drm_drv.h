@@ -36,13 +36,18 @@
 
 #include <drm/drm_device.h>
 
+#include <drm/drm_print.h>
+
 struct drm_file;
 struct drm_gem_object;
 struct drm_master;
 struct drm_minor;
+struct dma_buf;
 struct dma_buf_attachment;
 struct drm_display_mode;
 struct drm_mode_create_dumb;
+struct drm_printer;
+struct sg_table;
 
 /* driver capabilities and requirements mask */
 #define DRIVER_USE_AGP			0x1
@@ -473,7 +478,7 @@ struct drm_driver {
 				struct dma_buf *dma_buf);
 	int (*gem_prime_pin)(struct drm_gem_object *obj);
 	void (*gem_prime_unpin)(struct drm_gem_object *obj);
-	struct reservation_object * (*gem_prime_res_obj)(
+	struct dma_resv * (*gem_prime_res_obj)(
 				struct drm_gem_object *obj);
 	struct sg_table *(*gem_prime_get_sg_table)(struct drm_gem_object *obj);
 	struct drm_gem_object *(*gem_prime_import_sg_table)(
@@ -602,12 +607,14 @@ struct drm_driver {
 #endif /* __DragonFly__ */
 };
 
+#if 0
 void drm_dev_printk(const struct device *dev, const char *level,
 		    unsigned int category, const char *function_name,
 		    const char *prefix, const char *format, ...);
 void drm_printk(const char *level, unsigned int category,
 		const char *format, ...);
-extern unsigned int drm_debug;
+#endif
+// extern unsigned int drm_debug;
 
 int drm_dev_init(struct drm_device *dev,
 		 struct drm_driver *driver,

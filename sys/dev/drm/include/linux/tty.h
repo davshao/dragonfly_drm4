@@ -27,10 +27,12 @@
 #ifndef _LINUX_TTY_H_
 #define _LINUX_TTY_H_
 
+#if 0
 #include <linux/fs.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
 #include <linux/rwsem.h>
 #include <linux/llist.h>
+#endif
 
 #endif	/* _LINUX_TTY_H_ */

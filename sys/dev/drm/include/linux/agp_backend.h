@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2018 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,9 +26,24 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_AGP_BACKEND_H_
-#define _LINUX_AGP_BACKEND_H_
+#ifndef _LINUX_AGP_BACKEND_H
+#define _LINUX_AGP_BACKEND_H
 
+/* DragonFly sys/dev/agp/agppriv.h */
 struct agp_memory;
 
-#endif	/* _LINUX_AGP_BACKEND_H_ */
+#if defined(__OpenBSD__)
+#include <sys/param.h> /* for sparc64 bus.h */
+#include <machine/bus.h>
+ 
+#if defined(__amd64__) || defined(__i386__)
+/* DragonFly sys/dev/agp/agpvar.h */
+#define AGP_USER_MEMORY			0
+#define AGP_USER_CACHED_MEMORY		BUS_DMA_COHERENT
+#endif
+
+struct agp_bridge_data;
+
+#endif
+
+#endif

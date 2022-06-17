@@ -24,16 +24,120 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_IDR_H_
-#define _LINUX_IDR_H_
+#ifndef _LINUX_IDR_H
+#define _LINUX_IDR_H
 
-#include <linux/slab.h>
-
+#include <sys/types.h>
+#if defined(__OpenBSD__)
+#include <sys/tree.h>
+#else
 #include <sys/idr.h>
+#endif
+
+#if defined(__OpenBSD__)
+#include <linux/radix-tree.h>
+#else
+#include <linux/slab.h>
+#endif
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_IDR);
 #endif
+
+#if defined(__OpenBSD__)
+struct idr_entry {
+	SPLAY_ENTRY(idr_entry) entry;
+	unsigned long id;
+	void *ptr;
+};
+
+struct idr {
+	SPLAY_HEAD(idr_tree, idr_entry) tree;
+};
+#endif
+
+#if defined(__OpenBSD__)
+void idr_init(struct idr *);
+void idr_preload(unsigned int);
+int idr_alloc(struct idr *, void *, int, int, gfp_t);
+void *idr_find(struct idr *, unsigned long);
+#endif
+#if defined(__OpenBSD__) /* last argument int on DragonFly */
+void *idr_replace(struct idr *, void *, unsigned long);
+void *idr_remove(struct idr *, unsigned long);
+#endif
+#if defined(__OpenBSD__)
+void idr_destroy(struct idr *);
+int idr_for_each(struct idr *, int (*)(int, void *, void *), void *);
+#endif
+#if defined(__OpenBSD__) /* not defined on DragonFly */
+void *idr_get_next(struct idr *, int *);
+#else
+static inline void *
+idr_get_next(struct idr *idr, int *nextid)
+{
+	void *res = NULL;
+
+	lwkt_gettoken(&idr->idr_token);
+
+	for (int id = *nextid; id < idr->idr_count; id++) {
+		res = idr_find(idr, id);
+		if (res == NULL)
+			continue;
+		*nextid = id;
+		break;
+	}
+
+	lwkt_reltoken(&idr->idr_token);
+	return res;
+}
+#endif
+
+#if defined(__OpenBSD__)
+#define idr_for_each_entry(idp, entry, id) \
+	for (id = 0; ((entry) = idr_get_next(idp, &(id))) != NULL; id++)
+#else
+#define idr_for_each_entry(idp, entry, id)			\
+	for (id = 0; ((entry) = idr_get_next(idp, &(id))) != NULL; ++id)
+#endif
+ 
+static inline void
+idr_init_base(struct idr *idr, int base)
+{
+	idr_init(idr);
+}
+
+#if defined(__OpenBSD__)
+static inline void
+idr_preload_end(void)
+{
+}
+#endif
+ 
+static inline bool
+idr_is_empty(const struct idr *idr)
+{
+#if defined(__OpenBSD__)
+	return SPLAY_EMPTY(&idr->tree);
+#else
+/* Not sure */
+	int i;
+	struct idr_node *nodes;
+	lwkt_gettoken(&idr->idr_token);
+
+	nodes = idr->idr_nodes;
+	for (int id = 0; id < idr->idr_count; id++) {
+		if (nodes[i].allocated > 0) {
+			lwkt_reltoken(&idr->idr_token);
+			return false;
+		}
+	}
+
+	lwkt_reltoken(&idr->idr_token);
+	return true;
+}
+#endif
+
 
 #define	IDA_CHUNK_SIZE		128	/* 128 bytes per chunk */
 #define	IDA_BITMAP_LONGS	(IDA_CHUNK_SIZE / sizeof(long) - 1)
@@ -59,18 +163,6 @@ static inline void
 ida_init(struct ida *ida)
 {
 	idr_init(&ida->idr);
-}
-
-static inline void
-ida_simple_remove(struct ida *ida, unsigned int id)
-{
-	idr_remove(&ida->idr, id);
-}
-
-static inline void
-ida_remove(struct ida *ida, int id)
-{
-	idr_remove(&ida->idr, id);
 }
 
 static inline void
@@ -101,26 +193,16 @@ ida_simple_get(struct ida *ida, unsigned int start, unsigned int end, gfp_t gfp_
 	return id;
 }
 
-static inline void *
-idr_get_next(struct idr *idp, int *nextid)
+static inline void
+ida_simple_remove(struct ida *ida, unsigned int id)
 {
-	void *res = NULL;
-
-	lwkt_gettoken(&idp->idr_token);
-
-	for (int id = *nextid; id < idp->idr_count; id++) {
-		res = idr_find(idp, id);
-		if (res == NULL)
-			continue;
-		*nextid = id;
-		break;
-	}
-
-	lwkt_reltoken(&idp->idr_token);
-	return res;
+	idr_remove(&ida->idr, id);
 }
 
-#define idr_for_each_entry(idp, entry, id)			\
-	for (id = 0; ((entry) = idr_get_next(idp, &(id))) != NULL; ++id)
+static inline void
+ida_remove(struct ida *ida, int id)
+{
+	idr_remove(&ida->idr, id);
+}
 
-#endif	/* _LINUX_IDR_H_ */
+#endif

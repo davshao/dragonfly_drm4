@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2015-2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,25 +26,156 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_FB_H_
-#define _LINUX_FB_H_
+#ifndef _LINUX_FB_H
+#define _LINUX_FB_H
 
-#include <linux/kgdb.h>
+
 #include <uapi/linux/fb.h>
 
-#include <linux/fs.h>
-#include <linux/init.h>
+#include <sys/types.h>
+#if defined(__OpenBSD__)
+#include <linux/slab.h>
+#else
 #include <linux/workqueue.h>
+#endif
 #include <linux/notifier.h>
-#include <linux/list.h>
 #include <linux/backlight.h>
-#include <asm/io.h>
+#include <linux/kgdb.h>
+#include <linux/fs.h>
+// #include <linux/init.h>
+// #include <linux/list.h>
+// #include <asm/io.h>
 
 #include <machine/framebuffer.h>
 
-struct videomode;
+#if defined(__OpenBSD__)
+struct fb_cmap;
+struct fb_fillrect;
+struct fb_copyarea;
+struct fb_image;
+#endif
+
+struct fb_info;
+
+struct apertures_struct;
+
+#if defined(__OpenBSD__)
+struct fb_var_screeninfo {
+	int pixclock;
+	uint32_t width;
+	uint32_t height;
+};
+#else
+/* DragonFly definex in uapi/linux/fb.h */
+#endif
+
+#if defined(__OpenBSD__)
+struct fb_ops {
+	int (*fb_set_par)(struct fb_info *);
+};
+
+struct fb_info {
+	struct fb_var_screeninfo var;
+	const struct fb_ops *fbops;
+	char *screen_buffer;
+	void *par;
+	int fbcon_rotate_hint;
+	bool skip_vt_switch;
+	int flags;
+};
+#else
+/* DragonFly defines above in machine/framebuffer.h */
+#endif
 
 #define	KHZ2PICOS(a)	(1000000000UL/(a))
+
+#if defined(__OpenBSD__)
+
+#else /* defined in uapi/linux/fb.h */
+#endif
+
+#if defined(__OpenBSD__)
+#define FB_BLANK_UNBLANK	0
+#endif
+#define FB_BLANK_NORMAL		1
+#define FB_BLANK_HSYNC_SUSPEND	2
+#define FB_BLANK_VSYNC_SUSPEND	3
+#if defined(__OpenBSD__)
+#define FB_BLANK_POWERDOWN	4
+#endif
+
+#define FBINFO_STATE_RUNNING	0
+#define FBINFO_STATE_SUSPENDED	1
+
+#define FBINFO_HIDE_SMEM_START	0
+
+#define FB_ROTATE_UR		0
+#define FB_ROTATE_CW		1
+#define FB_ROTATE_UD		2
+#define FB_ROTATE_CCW		3
+
+struct videomode;
+
+#if defined(__OpenBSD__)
+static inline struct fb_info *
+framebuffer_alloc(size_t size, void *dev)
+{
+	return kzalloc(sizeof(struct fb_info) + size, GFP_KERNEL);
+}
+#else
+/* DragonFly defined in sys/dev/drm/linux_compat.c */
+struct fb_info *
+framebuffer_alloc(size_t size, struct device *dev);
+#endif
+
+#if defined(__OpenBSD__) || defined(__DragonFly__)
+static inline void
+fb_set_suspend(struct fb_info *fbi, int s)
+{
+}
+#else /* Not sure where the implementation is */
+void
+fb_set_suspend(struct fb_info *fbi, int s);
+#endif
+
+#if defined(__OpenBSD__)
+static inline void
+framebuffer_release(struct fb_info *fbi)
+{
+	kfree(fbi);
+}
+#else
+void
+framebuffer_release(struct fb_info *fbi);
+#endif
+
+#if defined(__OpenBSD__)
+static inline int
+fb_get_options(const char *name, char **opt)
+{
+	return 0;
+}
+#else
+int
+fb_get_options(const char *name, char **opt);
+#endif
+
+#if defined(__OpenBSD__)
+static inline int
+register_framebuffer(struct fb_info *fbi)
+{
+	if (fbi->fbops && fbi->fbops->fb_set_par)
+		fbi->fbops->fb_set_par(fbi);
+	return 0;
+}
+
+static inline void
+unregister_framebuffer(struct fb_info *fbi)
+{
+}
+#else
+/* DragonFly defines in sys/dev/misc/syscons/syscons.c */
+#endif
 
 struct apertures_struct {
 	unsigned int count;
@@ -52,18 +185,13 @@ struct apertures_struct {
 	} ranges[0];
 };
 
+#if 0
 extern int remove_conflicting_framebuffers(struct apertures_struct *a,
 					   const char *name, bool primary);
-
-extern void fb_set_suspend(struct fb_info *info, int state);
-
-extern int fb_get_options(const char *name, char **option);
+#endif
 
 #define FBINFO_STATE_RUNNING	0
 
 struct device_node;
 
-struct fb_info * framebuffer_alloc(size_t size, struct device *dev);
-void framebuffer_release(struct fb_info *info);
-
-#endif	/* _LINUX_FB_H_ */
+#endif

@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*-
  * Copyright (c) 2007 Cisco Systems, Inc.  All rights reserved.
  * Copyright (c) 2014-2015 Mellanox Technologies, Ltd. All rights reserved.
@@ -31,7 +33,7 @@
 #ifndef _LINUX_MATH64_H
 #define _LINUX_MATH64_H
 
-#include <linux/types.h>
+#if 0
 
 #define	do_div(n, base) ({			\
 	uint32_t __base = (base);		\
@@ -40,49 +42,82 @@
 	(n) = ((uint64_t)(n)) / __base;		\
 	__rem;					\
 })
+#endif
+
+#include <sys/types.h>
+#include <asm/div64.h>
+
+#include <linux/types.h>
 
 static inline uint64_t
-div_u64_rem(uint64_t dividend, uint32_t divisor, uint32_t *remainder)
+div_u64(uint64_t x, uint32_t y)
 {
-	*remainder = dividend % divisor;
-	return (dividend / divisor);
-}
-
-static inline uint64_t
-div64_u64(uint64_t dividend, uint64_t divisor)
-{
-	return (dividend / divisor);
+	return (x / y);
 }
 
 static inline int64_t
-div64_s64(int64_t dividend, int64_t divisor)
+#if defined(__OpenBSD__)
+div_s64(int64_t x, int64_t y)
+#else
+div_s64(int64_t x, int32_t y)
+#endif
 {
-	return (dividend / divisor);
+	return (x / y);
 }
 
 static inline uint64_t
-div_u64(uint64_t dividend, uint32_t divisor)
+div64_u64(uint64_t x, uint64_t y)
 {
-	return (dividend / divisor);
+	return (x / y);
+}
+
+static inline uint64_t
+div64_u64_rem(uint64_t x, uint64_t y, uint64_t *rem)
+{
+	*rem = x % y;
+	return (x / y);
+}
+
+static inline uint64_t
+div_u64_rem(uint64_t x, uint32_t y, uint32_t *rem)
+{
+	*rem = x % y;
+	return (x / y);
 }
 
 static inline int64_t
-div_s64(int64_t dividend, int32_t divisor)
+div64_s64(int64_t x, int64_t y)
 {
-	return (dividend / divisor);
+	return (x / y);
 }
 
-static inline u64
-div64_u64_rem(u64 dividend, u64 divisor, u64 *remainder)
+static inline uint64_t
+mul_u32_u32(uint32_t x, uint32_t y)
 {
-	*remainder = dividend % divisor;
-	return (dividend / divisor);
+	return (uint64_t)x * y;
 }
 
-static inline u64
-mul_u32_u32(u32 a, u32 b)
+static inline uint64_t
+mul_u64_u32_div(uint64_t x, uint32_t y, uint32_t div)
 {
-	return (uint64_t)a * b;
+	return (x * y) / div;
 }
 
-#endif	/* _LINUX_MATH64_H */
+#define DIV64_U64_ROUND_UP(x, y)	\
+({					\
+	uint64_t _t = (y);		\
+	div64_u64((x) + _t - 1, _t);	\
+})
+
+static inline uint64_t
+mul_u64_u32_shr(uint64_t x, uint32_t y, unsigned int shift)
+{
+	uint32_t hi, lo;
+	hi = x >> 32;
+	lo = x & 0xffffffff;
+
+	return (mul_u32_u32(lo, y) >> shift) +
+	    (mul_u32_u32(hi, y) << (32 - shift));
+}
+
+#endif

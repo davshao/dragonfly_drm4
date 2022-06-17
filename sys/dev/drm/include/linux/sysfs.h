@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2018-2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,14 +26,16 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_SYSFS_H_
-#define _LINUX_SYSFS_H_
+#ifndef _LINUX_SYSFS_H
+#define _LINUX_SYSFS_H
 
-#include <linux/compiler.h>
-#include <linux/errno.h>
-#include <linux/list.h>
-#include <linux/lockdep.h>
+#include <sys/types.h>
+// #include <linux/compiler.h>
+// #include <linux/errno.h>
+// #include <linux/list.h>
+// #include <linux/lockdep.h>
 #include <linux/atomic.h>
+// #include <linux/kernfs.h>
 
 struct kobject;
 
@@ -40,12 +44,20 @@ struct attribute {
 	umode_t	mode;
 };
 
+/* Code probably commented out for this as well */
+struct bin_attribute {
+};
+
+/* OpenBSD comments out code using this */
 struct sysfs_ops {
 	ssize_t	(*show)(struct kobject *, struct attribute *,char *);
 	ssize_t	(*store)(struct kobject *,struct attribute *,const char *, size_t);
 };
 
 struct attribute_group {
+	const char *name;
+	struct attribute **attrs;
+	struct bin_attribute **bin_attrs;
 };
 
 static inline int
@@ -59,4 +71,27 @@ sysfs_remove_link(struct kobject *kobj, const char *name)
 {
 }
 
-#endif	/* _LINUX_SYSFS_H_ */
+#if defined(__OpenBSD__)
+#define sysfs_create_link(x, y, z)	0
+#define sysfs_remove_link(x, y)
+#endif
+#define sysfs_create_group(x, y)	0
+#define sysfs_remove_group(x, y)
+#define sysfs_remove_file(x, y)
+#define sysfs_remove_file_from_group(x, y, z)
+#define sysfs_create_files(x, y)	0
+#define sysfs_remove_files(x, y)
+
+static inline int
+sysfs_emit(char *str, const char *format, ...)
+{
+	return 0;
+}
+
+static inline int
+sysfs_emit_at(char *str, int pos, const char *format, ...)
+{
+	return 0;
+}
+
+#endif

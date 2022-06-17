@@ -149,7 +149,7 @@ struct drm_gem_object *radeon_gem_prime_import_sg_table(struct drm_device *dev,
 							struct sg_table *sg);
 int radeon_gem_prime_pin(struct drm_gem_object *obj);
 void radeon_gem_prime_unpin(struct drm_gem_object *obj);
-struct reservation_object *radeon_gem_prime_res_obj(struct drm_gem_object *);
+struct dma_resv *radeon_gem_prime_res_obj(struct drm_gem_object *);
 void *radeon_gem_prime_vmap(struct drm_gem_object *obj);
 void radeon_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
 

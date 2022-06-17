@@ -764,7 +764,7 @@ static int amdgpu_cs_sync_rings(struct amdgpu_cs_parser *p)
 	int r;
 
 	list_for_each_entry(e, &p->validated, tv.head) {
-		struct reservation_object *resv = e->robj->tbo.resv;
+		struct dma_resv *resv = e->robj->tbo.resv;
 		r = amdgpu_sync_resv(p->adev, &p->job->sync, resv, p->filp,
 				     amdgpu_bo_explicit_sync(e->robj));
 
@@ -974,7 +974,7 @@ static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,
 		if (r)
 			return r;
 
-		r = reservation_object_reserve_shared(vm->root.base.bo->tbo.resv);
+		r = dma_resv_reserve_shared(vm->root.base.bo->tbo.resv, 1);
 		if (r)
 			return r;
 	}

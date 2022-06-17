@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2015-2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,26 +26,46 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_TIMEKEEPING_H_
-#define _LINUX_TIMEKEEPING_H_
+#ifndef _LINUX_TIMEKEEPING_H
+#define _LINUX_TIMEKEEPING_H
 
-static inline u64 ktime_get_raw_ns(void)
+#if defined(__OpenBSD__)
+
+static inline time_t
+ktime_get_real_seconds(void)
+{
+	return gettime();
+}
+
+static inline ktime_t
+ktime_get_real(void)
 {
 	struct timespec ts;
-
-	nanouptime(&ts);
-
-	return (ts.tv_sec * NSEC_PER_SEC) + ts.tv_nsec;
+	nanotime(&ts);
+	return TIMESPEC_TO_NSEC(&ts);
 }
 
-static inline ktime_t ktime_mono_to_real(ktime_t mono)
-{
-	return mono;
-}
+#else
 
-static inline ktime_t ktime_get_real(void)
+static inline ktime_t 
+ktime_get_real(void)
 {
 	return ktime_get_raw_ns();
+}
+
+/* Not sure */
+static inline time_t
+ktime_get_real_seconds(void)
+{
+	return (time_t)(ktime_get_real() / NSEC_PER_SEC);
+}
+
+#endif
+
+static inline uint64_t
+ktime_get_ns(void)
+{
+	return ktime_get();
 }
 
 /* Include time spent in suspend state */
@@ -53,10 +75,16 @@ ktime_get_boottime(void)
 	return ktime_get_real();
 }
 
-static inline s64
-ktime_ms_delta(const ktime_t later, const ktime_t earlier)
+static inline uint64_t
+ktime_get_boottime_ns(void)
 {
-	return (later - earlier) / NSEC_PER_MSEC;
+	return ktime_get_ns();
+}
+
+static inline ktime_t 
+ktime_mono_to_real(ktime_t mono)
+{
+	return mono;
 }
 
 static inline void
@@ -65,10 +93,4 @@ do_gettimeofday(struct timeval *tv)
 	microtime(tv);
 }
 
-static inline ktime_t
-ktime_get_raw(void)
-{
-	return ktime_get_raw_ns();
-}
-
-#endif	/* _LINUX_TIMEKEEPING_H_ */
+#endif

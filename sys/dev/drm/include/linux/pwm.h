@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2016 François Tigeot
  * All rights reserved.
@@ -24,18 +26,36 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_PWM_H_
-#define _LINUX_PWM_H_
+#ifndef _LINUX_PWM_H
+#define _LINUX_PWM_H
+
+// #include <sys/errno.h>
+// #include <linux/err.h>
 
 #include <linux/device.h>
 
 struct pwm_device;
 
-static inline int
-pwm_config(struct pwm_device *pwm, int duty_ns, int period_ns)
+struct pwm_state {
+	int state;
+	bool enabled;
+};
+
+static inline struct pwm_device *
+pwm_get(struct device *dev, const char *consumer)
+{
+#if defined(__OpenBSD__)
+	return ERR_PTR(-ENODEV);
+#else
+	kprintf("Stub: %s\n", __FUNCTION__);
+	return NULL;
+#endif
+}
+
+static inline void
+pwm_put(struct pwm_device *pwm)
 {
 	kprintf("Stub: %s\n", __FUNCTION__);
-	return -EINVAL;
 }
 
 static inline unsigned int
@@ -45,10 +65,11 @@ pwm_get_duty_cycle(const struct pwm_device *pwm)
 	return 0;
 }
 
-static inline void
-pwm_set_duty_cycle(struct pwm_device *pwm, unsigned int duty)
+static inline int
+pwm_config(struct pwm_device *pwm, int duty_ns, int period_ns)
 {
 	kprintf("Stub: %s\n", __FUNCTION__);
+	return -EINVAL;
 }
 
 static inline int
@@ -64,17 +85,15 @@ pwm_disable(struct pwm_device *pwm)
 	kprintf("Stub: %s\n", __FUNCTION__);
 }
 
-static inline struct pwm_device *
-pwm_get(struct device *dev, const char *consumer)
+static inline void
+pwm_apply_args(struct pwm_device *pwm)
 {
-	kprintf("Stub: %s\n", __FUNCTION__);
-	return NULL;
 }
 
 static inline void
-pwm_put(struct pwm_device *pwm)
+pwm_set_duty_cycle(struct pwm_device *pwm, unsigned int duty)
 {
 	kprintf("Stub: %s\n", __FUNCTION__);
 }
 
-#endif	/* _LINUX_PWM_H_ */
+#endif

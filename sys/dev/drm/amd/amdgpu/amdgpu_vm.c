@@ -454,7 +454,7 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 
 	ring = container_of(vm->entity.rq->sched, struct amdgpu_ring, sched);
 
-	r = reservation_object_reserve_shared(bo->tbo.resv);
+	r = dma_resv_reserve_shared(bo->tbo.resv, 1);
 	if (r)
 		return r;
 
@@ -570,7 +570,7 @@ static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
 
 	/* walk over the address space and allocate the page tables */
 	for (pt_idx = from; pt_idx <= to; ++pt_idx) {
-		struct reservation_object *resv = vm->root.base.bo->tbo.resv;
+		struct dma_resv *resv = vm->root.base.bo->tbo.resv;
 		struct amdgpu_vm_pt *entry = &parent->entries[pt_idx];
 		struct amdgpu_bo *pt;
 
@@ -1552,7 +1552,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	if (r)
 		goto error_free;
 
-	r = reservation_object_reserve_shared(vm->root.base.bo->tbo.resv);
+	r = dma_resv_reserve_shared(vm->root.base.bo->tbo.resv, 1);
 	if (r)
 		goto error_free;
 
@@ -1736,7 +1736,7 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 			ttm = container_of(bo->tbo.ttm, struct ttm_dma_tt, ttm);
 			pages_addr = ttm->dma_address;
 		}
-		exclusive = reservation_object_get_excl(bo->tbo.resv);
+		exclusive = dma_resv_excl_fence(bo->tbo.resv);
 	}
 
 	if (bo)
@@ -1915,18 +1915,18 @@ static void amdgpu_vm_free_mapping(struct amdgpu_device *adev,
  */
 static void amdgpu_vm_prt_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 {
-	struct reservation_object *resv = vm->root.base.bo->tbo.resv;
+	struct dma_resv *resv = vm->root.base.bo->tbo.resv;
 	struct dma_fence *excl, **shared;
 	unsigned i, shared_count;
 	int r;
 
-	r = reservation_object_get_fences_rcu(resv, &excl,
+	r = dma_resv_get_fences(resv, &excl,
 					      &shared_count, &shared);
 	if (r) {
 		/* Not enough memory to grab the fence list, as last resort
 		 * block for all the fences to complete.
 		 */
-		reservation_object_wait_timeout_rcu(resv, true, false,
+		dma_resv_wait_timeout(resv, true, false,
 						    MAX_SCHEDULE_TIMEOUT);
 		return;
 	}
@@ -2023,13 +2023,13 @@ int amdgpu_vm_handle_moved(struct amdgpu_device *adev,
 	lockmgr(&vm->moved_lock, LK_RELEASE);
 
 	list_for_each_entry_safe(bo_va, tmp, &moved, base.vm_status) {
-		struct reservation_object *resv = bo_va->base.bo->tbo.resv;
+		struct dma_resv *resv = bo_va->base.bo->tbo.resv;
 
 		/* Per VM BOs never need to bo cleared in the page tables */
 		if (resv == vm->root.base.bo->tbo.resv)
 			clear = false;
 		/* Try to reserve the BO to avoid clearing its ptes */
-		else if (!amdgpu_vm_debug && reservation_object_trylock(resv))
+		else if (!amdgpu_vm_debug && dma_resv_trylock(resv))
 			clear = false;
 		/* Somebody else is using the BO right now */
 		else
@@ -2044,7 +2044,7 @@ int amdgpu_vm_handle_moved(struct amdgpu_device *adev,
 		}
 
 		if (!clear && resv != vm->root.base.bo->tbo.resv)
-			reservation_object_unlock(resv);
+			dma_resv_unlock(resv);
 
 	}
 

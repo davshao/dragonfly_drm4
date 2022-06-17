@@ -64,7 +64,7 @@ MODULE_FIRMWARE("amdgpufw_raven_gpu_info");
 
 #define AMDGPU_RESUME_MS		2000
 
-static const char *amdgpu_asic_name[] = {
+const char *amdgpu_asic_name[] = {
 	"TAHITI",
 	"PITCAIRN",
 	"VERDE",
@@ -88,6 +88,19 @@ static const char *amdgpu_asic_name[] = {
 	"VEGA12",
 	"VEGA20",
 	"RAVEN",
+	"ARCTURUS",
+	"RENOIR",
+	"ALDEBARAN",
+	"NAVI10",
+	"CYAN_SKILLFISH",
+	"NAVI14",
+	"NAVI12",
+	"SIENNA_CICHLID",
+	"NAVY_FLOUNDER",
+	"VANGOGH",
+	"DIMGREY_CAVEFISH",
+	"BEIGE_GOBY",
+	"YELLOW_CARP",
 	"LAST",
 };
 
