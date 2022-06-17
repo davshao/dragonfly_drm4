@@ -71,7 +71,7 @@
 #include <drm/drm_global.h>
 #include <drm/drm_hashtab.h>
 #include <drm/drm_mm.h>
-#include <drm/drm_os_linux.h>
+// #include <drm/drm_os_linux.h>
 #include <drm/drm_sarea.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_prime.h>
@@ -85,6 +85,9 @@
 
 #include <drm/drm_device.h>
 
+#include <drm/drm_print.h>
+#include <drm/drm_util.h>
+
 #ifdef __DragonFly__
 #include <sys/conf.h>
 #include <sys/sysctl.h>
@@ -97,12 +100,13 @@ struct module;
 
 struct device_node;
 struct videomode;
-struct reservation_object;
+struct dma_resv;
 struct dma_buf_attachment;
 
 struct pci_dev;
 struct pci_controller;
 
+#if 0
 /*
  * The following categories are defined:
  *
@@ -158,22 +162,26 @@ struct pci_controller;
 #define DRM_UT_STATE		0x40
 #define DRM_UT_LEASE		0x80
 /* Extra DragonFly debug categories */
-#ifdef __DragonFly__
 #define DRM_UT_PID		0x100
 #define DRM_UT_FIOCTL		0x200
 #define DRM_UT_IOCTL		0x400
+#endif
 
+#if 0
+#ifdef __DragonFly__
 extern __printf(2, 3)
 void drm_ut_debug_printk(const char *function_name,
 			 const char *format, ...);
 extern __printf(2, 3)
 void drm_err(const char *func, const char *format, ...);
 #endif
+#endif
 
 /***********************************************************************/
 /** \name DRM template customization defaults */
 /*@{*/
 
+#if 0
 /***********************************************************************/
 /** \name Macros to make printk easier */
 /*@{*/
@@ -197,7 +205,9 @@ void drm_err(const char *func, const char *format, ...);
 	_DRM_PRINTK(_once, NOTICE, fmt, ##__VA_ARGS__)
 #define DRM_WARN_ONCE(fmt, ...)						\
 	_DRM_PRINTK(_once, WARNING, fmt, ##__VA_ARGS__)
+#endif
 
+#if 0
 /**
  * Error output.
  *
@@ -350,6 +360,7 @@ void drm_err(const char *func, const char *format, ...);
 	_DRM_DEV_DEFINE_DEBUG_RATELIMITED(dev, PRIME, fmt, ##args)
 #define DRM_DEBUG_PRIME_RATELIMITED(fmt, args...)			\
 	DRM_DEV_DEBUG_PRIME_RATELIMITED(NULL, fmt, ##args)
+#endif
 
 /* Format strings and argument splitters to simplify printing
  * various "complex" objects
@@ -454,6 +465,7 @@ void drm_print_pdev(struct pci_dev *pdev);
 
 /*@}*/
 
+#if 0
 /* returns true if currently okay to sleep */
 static __inline__ bool drm_can_sleep(void)
 {
@@ -464,6 +476,7 @@ static __inline__ bool drm_can_sleep(void)
 
 /* helper for handling conditionals in various for_each macros */
 #define for_each_if(condition) if (!(condition)) {} else
+#endif
 
 #ifdef __DragonFly__
 struct drm_softc {

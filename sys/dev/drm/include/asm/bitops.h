@@ -27,6 +27,7 @@
 #ifndef _ASM_BITOPS_H
 #define _ASM_BITOPS_H
 
+#if 0
 #include <linux/compiler.h>
 #include <asm/barrier.h>
 
@@ -46,5 +47,6 @@ __test_and_set_bit(long nr, volatile unsigned long *addr)
 
 	return previous_bit;
 }
+#endif
 
 #endif /* _ASM_BITOPS_H */

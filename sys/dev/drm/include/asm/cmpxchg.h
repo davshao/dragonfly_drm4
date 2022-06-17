@@ -27,6 +27,7 @@
 #ifndef	_ASM_CMPXCHG_H_
 #define	_ASM_CMPXCHG_H_
 
+#if 0
 #define xchg(ptr, value)				\
 ({							\
 	__typeof(value) __ret = (value);		\
@@ -58,5 +59,6 @@
 							\
 	__ret;						\
 })
+#endif
 
 #endif	/* _ASM_CMPXCHG_H_ */

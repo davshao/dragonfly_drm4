@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,10 +26,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_IO_64_NONATOMIC_LO_HI_H_
-#define _LINUX_IO_64_NONATOMIC_LO_HI_H_
+#ifndef _LINUX_IO_64_NONATOMIC_LO_HI_H
+#define _LINUX_IO_64_NONATOMIC_LO_HI_H
 
 #include <linux/io.h>
-#include <asm-generic/int-ll64.h>
+// #include <asm-generic/int-ll64.h>
 
-#endif	/* _LINUX_IO_64_NONATOMIC_LO_HI_H_ */
+#endif

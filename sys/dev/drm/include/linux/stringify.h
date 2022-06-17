@@ -24,7 +24,13 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_STRINGIFY_H_
-#define _LINUX_STRINGIFY_H_
+#ifndef _LINUX_STRINGIFY_H
+#define _LINUX_STRINGIFY_H
 
-#endif	/* _LINUX_STRINGIFY_H_ */
+#define ___stringify(x...)	#x
+
+#ifndef __stringify
+#define __stringify(x...)	___stringify(x)
+#endif
+
+#endif

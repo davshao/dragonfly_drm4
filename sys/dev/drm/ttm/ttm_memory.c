@@ -36,6 +36,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/stat.h>
 
 #define TTM_MEMORY_ALLOC_RETRIES 4
 

@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2017-2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,8 +26,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_PM_H_
-#define _LINUX_PM_H_
+#ifndef _LINUX_PM_H
+#define _LINUX_PM_H
 
 #include <linux/list.h>
 #include <linux/spinlock.h>
@@ -37,6 +39,15 @@ struct device;
 
 struct dev_pm_domain {
 };
+
+#if defined(__OpenBSD__)
+typedef struct {
+} pm_message_t;
+#else
+typedef struct pm_message {
+        int event;
+} pm_message_t;
+#endif
 
 struct dev_pm_ops {
 	int (*suspend)(struct device *dev);
@@ -54,4 +65,4 @@ struct dev_pm_info {
 	bool	is_suspended:1;
 };
 
-#endif	/* _LINUX_PM_H_ */
+#endif

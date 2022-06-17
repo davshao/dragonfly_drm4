@@ -27,10 +27,12 @@
 #ifndef _LINUX_KMOD_H_
 #define _LINUX_KMOD_H_
 
+#if 0
 #include <linux/gfp.h>
 #include <linux/stddef.h>
 #include <linux/errno.h>
 #include <linux/compiler.h>
 #include <linux/workqueue.h>
+#endif
 
 #endif	/* _LINUX_KMOD_H_ */

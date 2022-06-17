@@ -1,3 +1,21 @@
+/*	$OpenBSD: wait.h,v 1.8 2021/07/07 02:38:36 jsg Exp $	*/
+/*
+ * Copyright (c) 2013, 2014, 2015 Mark Kettenis
+ * Copyright (c) 2017 Martin Pieuchot
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
 /*
  * Copyright (c) 2014 Imre Vadász
  * Copyright (c) 2014-2020 François Tigeot <ftigeot@wolfpond.org>
@@ -25,74 +43,129 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_WAIT_H_
-#define _LINUX_WAIT_H_
+#ifndef _LINUX_WAIT_H
+#define _LINUX_WAIT_H
+
+#include <sys/systm.h>
+#include <sys/lock.h>
 
 #include <linux/list.h>
-#include <linux/stddef.h>
+// #include <linux/stddef.h>
+#include <linux/errno.h>
 #include <linux/spinlock.h>
 #include <asm/current.h>
-
-typedef struct wait_queue_entry wait_queue_entry_t;
-
-typedef int (*wait_queue_func_t)(wait_queue_entry_t *wait, unsigned mode, int flags, void *key);
-
-int default_wake_function(wait_queue_entry_t *wait, unsigned mode, int flags, void *key);
-int autoremove_wake_function(wait_queue_entry_t *wait, unsigned mode, int sync, void *key);
 
 struct wait_queue_entry {
 	unsigned int flags;
 	void *private;
-	wait_queue_func_t func;
+	int (*func)(struct wait_queue_entry *, unsigned, int, void *);
 	struct list_head entry;
 };
 
-void init_wait_entry(struct wait_queue_entry *wq_entry, int flags);
+typedef struct wait_queue_entry wait_queue_entry_t;
 
-typedef struct {
-	struct lock		lock;
-	struct list_head	head;
-} wait_queue_head_t;
+#if defined(__OpenBSD__)
+extern struct mutex sch_mtx;
+extern volatile struct proc *sch_proc;
+extern volatile void *sch_ident;
+extern int sch_priority;
+#endif
 
-void __init_waitqueue_head(wait_queue_head_t *q, const char *name, struct lock_class_key *);
-
-static inline void
-init_waitqueue_head(wait_queue_head_t *q)
-{
-	__init_waitqueue_head(q, "", NULL);
-}
-
-void __wake_up_core(wait_queue_head_t *q, int num_to_wake_up);
+struct wait_queue_head {
+	struct lock lock;
+	struct list_head head;
+};
+typedef struct wait_queue_head wait_queue_head_t;
 
 static inline void
-wake_up(wait_queue_head_t *q)
+init_waitqueue_head(wait_queue_head_t *wqh)
 {
-	lockmgr(&q->lock, LK_EXCLUSIVE);
-	__wake_up_core(q, 1);
-	lockmgr(&q->lock, LK_RELEASE);
-	wakeup_one(q);
+	lockinit(&wqh->lock, "lwq", 0, 0);
+	INIT_LIST_HEAD(&wqh->head);
+}
+ 
+#define __init_waitqueue_head(wqh, name, key)	init_waitqueue_head(wqh)
+
+int default_wake_function(wait_queue_entry_t *wait, unsigned mode, int flags, void *key);
+int autoremove_wake_function(struct wait_queue_entry *, unsigned int, int, void *);
+
+static inline void
+init_wait_entry(wait_queue_entry_t *wqe, int flags)
+{
+	wqe->flags = flags;
+	wqe->private = current;
+	wqe->func = autoremove_wake_function;
+	INIT_LIST_HEAD(&wqe->entry);
 }
 
 static inline void
-wake_up_all(wait_queue_head_t *q)
+__add_wait_queue(wait_queue_head_t *wqh, wait_queue_entry_t *wqe)
 {
-	lockmgr(&q->lock, LK_EXCLUSIVE);
-	__wake_up_core(q, 0);
-	lockmgr(&q->lock, LK_RELEASE);
-	wakeup(q);
+	list_add(&wqe->entry, &wqh->head);
 }
 
-void wake_up_bit(void *, int);
+static inline void
+__add_wait_queue_entry_tail(wait_queue_head_t *wqh, wait_queue_entry_t *wqe)
+{
+	list_add_tail(&wqe->entry, &wqh->head);
+}
 
-#define wake_up_all_locked(eq)		__wake_up_core(eq, 0)
+static inline void
+add_wait_queue(wait_queue_head_t *head, wait_queue_entry_t *new)
+{
+	lockmgr(&head->lock, LK_EXCLUSIVE);
+	__add_wait_queue(head, new);
+	lockmgr(&head->lock, LK_RELEASE);
+}
 
-#define wake_up_interruptible(eq)	wake_up(eq)
-#define wake_up_interruptible_all(eq)	wake_up_all(eq)
+static inline void
+__remove_wait_queue(wait_queue_head_t *wqh, wait_queue_entry_t *wqe)
+{
+	list_del(&wqe->entry);
+}
 
-void __wait_event_prefix(wait_queue_head_t *wq, int flags);
-void prepare_to_wait(wait_queue_head_t *q, wait_queue_entry_t *wait, int state);
-void finish_wait(wait_queue_head_t *q, wait_queue_entry_t *wait);
+static inline void
+remove_wait_queue(wait_queue_head_t *head, wait_queue_entry_t *old)
+{
+	lockmgr(&head->lock, LK_EXCLUSIVE);
+	__remove_wait_queue(head, old);
+	lockmgr(&head->lock, LK_RELEASE);
+}
 
+void
+prepare_to_wait(wait_queue_head_t *q, wait_queue_entry_t *wait, int state);
+void
+finish_wait(wait_queue_head_t *q, wait_queue_entry_t *wait);
+
+#if defined(__OpenBSD__)
+#define __wait_event_intr_timeout(wqh, condition, timo, prio)		\
+({									\
+	long ret = timo;						\
+	do {								\
+		int __error;						\
+		unsigned long deadline;					\
+									\
+		KASSERT(!cold);						\
+									\
+		mtx_enter(&sch_mtx);					\
+		deadline = jiffies + ret;				\
+		__error = msleep(&wqh, &sch_mtx, prio, "drmweti", ret);	\
+		ret = deadline - jiffies;				\
+		if (__error == ERESTART || __error == EINTR) {		\
+			ret = -ERESTARTSYS;				\
+			mtx_leave(&sch_mtx);				\
+			break;						\
+		}							\
+		if ((timo) > 0 && (ret <= 0 || __error == EWOULDBLOCK)) { \
+			mtx_leave(&sch_mtx);				\
+			ret = ((condition)) ? 1 : 0;			\
+			break;						\
+ 		}							\
+		mtx_leave(&sch_mtx);					\
+	} while (ret > 0 && !(condition));				\
+	ret;								\
+})
+#else
 /*
  * wait_event_interruptible_timeout:
  * - The process is put to sleep until the condition evaluates to true.
@@ -167,35 +240,218 @@ void finish_wait(wait_queue_head_t *q, wait_queue_entry_t *wait);
 	finish_wait(&wq, &tmp_wq);					\
 	retval;								\
 })
+#endif
 
+#if defined(__OpenBSD__)
+/*
+ * Sleep until `condition' gets true.
+ */
+#define wait_event(wqh, condition) 		\
+do {						\
+	if (!(condition))			\
+		__wait_event_intr_timeout(wqh, condition, 0, 0); \
+} while (0)
+#else
 #define wait_event(wq, condition)					\
 		__wait_event_common(wq, condition, 0, 0, false)
+#endif
 
-#define wait_event_timeout(wq, condition, timeout)			\
-		__wait_event_common(wq, condition, timeout, 0, false)
-
-#define wait_event_interruptible(wq, condition)				\
+#if defined(__OpenBSD__)
+#define wait_event_killable(wqh, condition) 		\
+({						\
+	int __ret = 0;				\
+	if (!(condition))			\
+		__ret = __wait_event_intr_timeout(wqh, condition, 0, PCATCH); \
+	__ret;					\
+})
+#else
+/* Not sure */
+#define wait_event_killable(wqh, condition)				\
 ({									\
 	long retval;							\
 									\
-	retval = __wait_event_common(wq, condition, 0, PCATCH, false);	\
+	retval = __wait_event_common(wqh, condition, 0, PCATCH, false);	\
 	if (retval != -ERESTARTSYS)					\
 		retval = 0;						\
 	retval;								\
 })
+#endif
 
-#define wait_event_interruptible_locked(wq, condition)			\
+#if defined(__OpenBSD__)
+#define wait_event_interruptible(wqh, condition) 		\
+({						\
+	int __ret = 0;				\
+	if (!(condition))			\
+		__ret = __wait_event_intr_timeout(wqh, condition, 0, PCATCH); \
+	__ret;					\
+})
+#else
+#define wait_event_interruptible(wqh, condition)				\
 ({									\
 	long retval;							\
 									\
-	retval = __wait_event_common(wq, condition, 0, PCATCH, true);	\
+	retval = __wait_event_common(wqh, condition, 0, PCATCH, false);	\
 	if (retval != -ERESTARTSYS)					\
 		retval = 0;						\
 	retval;								\
 })
+#endif
 
-#define wait_event_interruptible_timeout(wq, condition, timeout)	\
-		__wait_event_common(wq, condition, timeout, PCATCH, false)
+#if defined(__OpenBSD__)
+#define wait_event_interruptible_locked(wqh, condition) 		\
+({						\
+	int __ret = 0;				\
+	if (!(condition))			\
+		__ret = __wait_event_intr_timeout(wqh, condition, 0, PCATCH); \
+	__ret;					\
+})
+#else
+#define wait_event_interruptible_locked(wqh, condition)			\
+({									\
+	long retval;							\
+									\
+	retval = __wait_event_common(wqh, condition, 0, PCATCH, true);	\
+	if (retval != -ERESTARTSYS)					\
+		retval = 0;						\
+	retval;								\
+})
+#endif
+
+#if defined(__OpenBSD__)
+/*
+ * Sleep until `condition' gets true or `timo' expires.
+ *
+ * Returns 0 if `condition' is still false when `timo' expires or
+ * the remaining (>=1) jiffies otherwise.
+ */
+#define wait_event_timeout(wqh, condition, timo)	\
+({						\
+	long __ret = timo;			\
+	if (!(condition))			\
+		__ret = __wait_event_intr_timeout(wqh, condition, timo, 0); \
+	__ret;					\
+})
+#else
+#define wait_event_timeout(wqh, condition, timo)			\
+		__wait_event_common(wqh, condition, timo, 0, false)
+#endif
+
+#if defined(__OpenBSD__)
+/*
+ * Sleep until `condition' gets true, `timo' expires or the process
+ * receives a signal.
+ *
+ * Returns -ERESTARTSYS if interrupted by a signal.
+ * Returns 0 if `condition' is still false when `timo' expires or
+ * the remaining (>=1) jiffies otherwise.
+ */
+#define wait_event_interruptible_timeout(wqh, condition, timo) \
+({						\
+	long __ret = timo;			\
+	if (!(condition))			\
+		__ret = __wait_event_intr_timeout(wqh, condition, timo, PCATCH);\
+	__ret;					\
+})
+#else
+#define wait_event_interruptible_timeout(wqh, condition, timo)	\
+		__wait_event_common(wqh, condition, timo, PCATCH, false)
+#endif
+
+// void init_wait_entry(struct wait_queue_entry *wq_entry, int flags);
+
+// void __init_waitqueue_head(wait_queue_head_t *q, const char *name, struct lock_class_key *);
+
+#if 0
+static inline void
+init_waitqueue_head(wait_queue_head_t *q)
+{
+	__init_waitqueue_head(q, "", NULL);
+}
+#endif
+
+void __wake_up_core(wait_queue_head_t *q, int num_to_wake_up);
+#if 0 && defined(__DragonFly__) /* From linux_wait.c */
+void
+__wake_up_core(wait_queue_head_t *wqh, int num_to_wake_up)
+{
+	wait_queue_entry_t *curr, *next;
+	int mode = TASK_NORMAL;
+
+	list_for_each_entry_safe(curr, next, &wqh->head, entry) {
+		if (curr->func(curr, mode, 0, NULL))
+			num_to_wake_up--;
+
+		if (num_to_wake_up == 0)
+			break;
+	}
+}
+#endif
+
+#if defined(__OpenBSD__)
+static inline void
+wake_up(wait_queue_head_t *wqh)
+{
+	wait_queue_entry_t *wqe;
+	wait_queue_entry_t *tmp;
+	mtx_enter(&wqh->lock);
+	
+	list_for_each_entry_safe(wqe, tmp, &wqh->head, entry) {
+		KASSERT(wqe->func != NULL);
+		if (wqe->func != NULL)
+			wqe->func(wqe, 0, wqe->flags, NULL);
+	}
+	wakeup(wqh);
+	mtx_leave(&wqh->lock);
+}
+#else
+static inline void
+wake_up(wait_queue_head_t *wqh)
+{
+	lockmgr(&wqh->lock, LK_EXCLUSIVE);
+	__wake_up_core(wqh, 1);
+	lockmgr(&wqh->lock, LK_RELEASE);
+	wakeup_one(wqh);
+}
+#endif
+
+#if defined(__OpenBSD__)
+#define wake_up_all(wqh)			wake_up(wqh)
+#else
+static inline void
+wake_up_all(wait_queue_head_t *wqh)
+{
+	lockmgr(&wqh->lock, LK_EXCLUSIVE);
+	__wake_up_core(wqh, 0);
+	lockmgr(&wqh->lock, LK_RELEASE);
+	wakeup(wqh);
+}
+#endif
+
+// void wake_up_bit(void *, int);
+
+#if defined(__OpenBSD__)
+static inline void
+wake_up_all_locked(wait_queue_head_t *wqh)
+{
+	wait_queue_entry_t *wqe;
+	wait_queue_entry_t *tmp;
+
+	list_for_each_entry_safe(wqe, tmp, &wqh->head, entry) {
+		KASSERT(wqe->func != NULL);
+		if (wqe->func != NULL)
+			wqe->func(wqe, 0, wqe->flags, NULL);
+	}
+	wakeup(wqh);
+}
+#else
+#define wake_up_all_locked(wqh)		__wake_up_core(wqh, 0)
+#endif
+
+#define wake_up_interruptible(wqh)		wake_up(wqh)
+#define wake_up_interruptible_poll(wqh, flags)	wake_up(wqh)
+#define wake_up_interruptible_all(wqh)		wake_up_all(wqh)
+
+void __wait_event_prefix(wait_queue_head_t *wq, int flags);
 
 static inline int
 waitqueue_active(wait_queue_head_t *q)
@@ -203,29 +459,24 @@ waitqueue_active(wait_queue_head_t *q)
 	return !list_empty(&q->head);
 }
 
-#define DEFINE_WAIT_FUNC(name, _function)			\
-	wait_queue_entry_t name = {				\
-		.private = current,				\
+#if defined(__OpenBSD__)
+#define	DEFINE_WAIT(name)				\
+	struct wait_queue_entry name = {		\
+		.private = curproc,			\
+		.func = autoremove_wake_function,	\
 		.entry = LIST_HEAD_INIT((name).entry),	\
+	}
+#else
+#define DEFINE_WAIT_FUNC(name, _function)			\
+	struct wait_queue_entry name = {			\
+		.private = current,				\
 		.func = _function,				\
+		.entry = LIST_HEAD_INIT((name).entry),		\
 	}
 
 #define DEFINE_WAIT(name)	\
 	DEFINE_WAIT_FUNC((name), autoremove_wake_function)
-
-static inline void
-__add_wait_queue(wait_queue_head_t *head, wait_queue_entry_t *new)
-{
-	list_add(&new->entry, &head->head);
-}
-
-static inline void
-add_wait_queue(wait_queue_head_t *head, wait_queue_entry_t *wait)
-{
-	lockmgr(&head->lock, LK_EXCLUSIVE);
-	__add_wait_queue(head, wait);
-	lockmgr(&head->lock, LK_RELEASE);
-}
+#endif
 
 #define DECLARE_WAIT_QUEUE_HEAD(name)					\
 	wait_queue_head_t name = {					\
@@ -233,24 +484,55 @@ add_wait_queue(wait_queue_head_t *head, wait_queue_entry_t *wait)
 		.head = { &(name).head, &(name).head }	\
 	}
 
+#if defined(__OpenBSD)
 static inline void
-__remove_wait_queue(wait_queue_head_t *head, wait_queue_entry_t *old)
+prepare_to_wait(wait_queue_head_t *wqh, wait_queue_entry_t *wqe, int state)
 {
-	list_del(&old->entry);
+	if (wqe->flags == 0) {
+		mtx_enter(&sch_mtx);
+		wqe->flags = 1;
+	}
+	MUTEX_ASSERT_LOCKED(&sch_mtx);
+	if (list_empty(&wqe->entry))
+		__add_wait_queue(wqh, wqe);
+	sch_proc = curproc;
+	sch_ident = wqe;
+	sch_priority = state;
 }
-
+#elif 0 && defined(__DragonFly__) /* linux_wait.c */
 static inline void
-remove_wait_queue(wait_queue_head_t *head, wait_queue_entry_t *wq)
+prepare_to_wait(wait_queue_head_t *wqh, wait_queue_entry_t *wqe, int state)
 {
-	lockmgr(&head->lock, LK_EXCLUSIVE);
-	__remove_wait_queue(head, wq);
-	lockmgr(&head->lock, LK_RELEASE);
+	lockmgr(&wqh->lock, LK_EXCLUSIVE);
+	if (list_empty(&wqe->entry))
+		__add_wait_queue(wqh, wqe);
+	current->state = (state);
+	mb();
+	lockmgr(&wqh->lock, LK_RELEASE);
 }
+#endif
 
+#if defined(__OpenBSD)
 static inline void
-__add_wait_queue_entry_tail(wait_queue_head_t *wqh, wait_queue_entry_t *wq)
+finish_wait(wait_queue_head_t *wqh, wait_queue_entry_t *wqe)
 {
-	list_add_tail(&wq->entry, &wqh->head);
+	MUTEX_ASSERT_LOCKED(&sch_mtx);
+	sch_ident = NULL;
+	if (!list_empty(&wqe->entry))
+		list_del_init(&wqe->entry);
+	mtx_leave(&sch_mtx);
 }
+#elif 0 && defined(__DragonFly__) /* linux_wait.c */
+void
+finish_wait(wait_queue_head_t *wqh, wait_queue_entry_t *wqe)
+{
+	set_current_state(TASK_RUNNING);
 
-#endif	/* _LINUX_WAIT_H_ */
+	lockmgr(&wqh->lock, LK_EXCLUSIVE);
+	if (!list_empty(&wqe->entry))
+		list_del_init(&wqe->entry);
+	lockmgr(&wqh->lock, LK_RELEASE);
+}
+#endif
+
+#endif

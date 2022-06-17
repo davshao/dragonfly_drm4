@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2015-2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,13 +26,37 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_LOCKDEP_H_
-#define _LINUX_LOCKDEP_H_
+#ifndef _LINUX_LOCKDEP_H
+#define _LINUX_LOCKDEP_H
 
-#include <linux/linkage.h>
-#include <linux/list.h>
-
+#include <sys/systm.h>
 #include <sys/lock.h>
+
+#include <linux/smp.h>
+// #include <linux/linkage.h>
+// #include <linux/list.h>
+
+struct lock_class_key {
+};
+
+struct pin_cookie {
+};
+
+#if defined(__OpenBSD__)
+#define might_lock(lock)
+#else
+#define might_lock(lock) do { } while (0)
+#endif
+
+#define might_lock_nested(lock, subc)
+
+#if defined(__OpenBSD__)
+
+#define lockdep_assert_held(lock)	do { (void)(lock); } while(0)
+#define lockdep_assert_held_once(lock)	do { (void)(lock); } while(0)
+#define lockdep_assert_once(lock)	do { (void)(lock); } while(0)
+
+#else
 
 static inline void
 lockdep_assert_held(struct lock *l)
@@ -38,12 +64,43 @@ lockdep_assert_held(struct lock *l)
 	KKASSERT(lockinuse(l));
 }
 
-#define might_lock(lock) do { } while (0)
+/* Not sure */
+#define lockdep_assert_held_once(lock)	lockdep_assert_held(lock)	
+#define lockdep_assert_once(lock)	lockdep_assert_held(lock)	
 
-struct lock_class_key {
-};
+#endif
 
-#define lock_acquire_shared_recursive(lock, b, c, d, e)	do {} while (0)
+#define lockdep_assert_none_held_once()	do {} while(0)
+#define lock_acquire(lock, a, b, c, d, e, f)
+
+#if defined(__OpenBSD__)
+
+#define lock_release(lock, a)
+#define lock_acquire_shared_recursive(lock, a, b, c, d)
+
+#else
+
 #define lock_release(lock, b, c)			do {} while (0)
+#define lock_acquire_shared_recursive(lock, b, c, d, e)	do {} while (0)
 
-#endif	/* _LINUX_LOCKDEP_H_ */
+#endif
+
+#define lockdep_set_subclass(a, b)
+#define lockdep_unpin_lock(a, b)
+#define lockdep_set_class(a, b)
+#define lockdep_init_map(a, b, c, d)
+#define lockdep_set_class_and_name(a, b, c)
+#define lockdep_is_held(lock)		0
+
+#define mutex_acquire(a, b, c, d)
+#define mutex_release(a, b)
+
+#define SINGLE_DEPTH_NESTING		0
+
+#define lockdep_pin_lock(lock)		\
+({					\
+	struct pin_cookie pc = {};	\
+	pc;				\
+})
+
+#endif

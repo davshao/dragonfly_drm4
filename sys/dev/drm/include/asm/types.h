@@ -27,6 +27,8 @@
 #ifndef _ASM_TYPES_H
 #define _ASM_TYPES_H
 
+#if 0
 #include <uapi/asm-generic/int-ll64.h>
+#endif
 
 #endif /* _ASM_TYPES_H */

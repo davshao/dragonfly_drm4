@@ -38,6 +38,7 @@
 
 #include <linux/ww_mutex.h>
 
+#if 0
 void
 ww_acquire_init(struct ww_acquire_ctx *ctx, struct ww_class *ww_class)
 {
@@ -70,6 +71,7 @@ ww_mutex_destroy(struct ww_mutex *ww)
 {
 	lockuninit(&ww->base);
 }
+#endif
 
 /*
  * Optimized lock path.
@@ -160,6 +162,7 @@ __wwlock(struct ww_mutex *ww, struct ww_acquire_ctx *ctx,
 	}
 }
 
+#if 0
 int
 ww_mutex_lock(struct ww_mutex *ww, struct ww_acquire_ctx *ctx)
 {
@@ -201,3 +204,4 @@ ww_mutex_unlock(struct ww_mutex *ww)
 	if (atomic_swap_int(&ww->blocked, 0))
 		wakeup(ww);
 }
+#endif

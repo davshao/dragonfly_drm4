@@ -48,4 +48,13 @@ acpi_is_video_device(ACPI_HANDLE devh) {
 	return 1;
 }
 
+#if defined(__OpenBSD__)
+acpi_status acpi_evaluate_object(acpi_handle, const char *,
+	struct acpi_object_list *, struct acpi_buffer *);
+
+acpi_status acpi_get_handle(acpi_handle, const char *, acpi_handle *);
+acpi_status acpi_get_name(acpi_handle, int, struct acpi_buffer *);
+acpi_status acpi_get_table(const char *, int, struct acpi_table_header **);
+#endif
+
 #endif	/* _LINUX_ACPI_H_ */

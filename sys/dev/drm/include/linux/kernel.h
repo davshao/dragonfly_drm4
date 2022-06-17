@@ -27,152 +27,88 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef	_LINUX_KERNEL_H_
-#define	_LINUX_KERNEL_H_
+#ifndef _LINUX_KERNEL_H
+#define _LINUX_KERNEL_H
 
+#include <sys/stdint.h>
+#include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/stdarg.h>
+
+#include <sys/libkern.h>
+#include <sys/stat.h>
+#include <sys/malloc.h>
+
+#include <machine/limits.h>	/* LONG_MAX etc... */
+
 #include <linux/stddef.h>
 #include <linux/types.h>
 #include <linux/compiler.h>
 #include <linux/bitops.h>
 #include <linux/log2.h>
-#include <linux/typecheck.h>
+
+#include <linux/linkage.h>
+
 #include <linux/printk.h>
+#include <linux/typecheck.h>
 
-#include <sys/systm.h>
-#include <sys/param.h>
-#include <sys/libkern.h>
-#include <sys/stat.h>
-#include <sys/endian.h>
+#include <asm/byteorder.h>
 
+#define swap(a, b) \
+	do { __typeof(a) __tmp = (a); (a) = (b); (b) = __tmp; } while(0)
+
+#define container_of(ptr, type, member) ({			\
+	__typeof( ((type *)0)->member ) *__mptr = (ptr);	\
+	(type *)( (char *)__mptr - offsetof(type,member) );})
+
+#define offsetofend(s, e) (offsetof(s, e) + sizeof((((s *)0)->e)))
+
+#define typeof_member(s, e)	typeof(((s *)0)->e)
+
+#if 0
 #define U8_MAX		((u8)~0U)
 #define U16_MAX		((u16)~0U)
 #define U32_MAX		((u32)~0U)
 #define U64_MAX		((u64)~0ULL)
+
+#define S8_MAX		((s8)(U8_MAX>>1))
+#define S16_MAX		((s16)(U16_MAX>>1))
+#define S32_MAX		((s32)(U32_MAX>>1))
 #define S64_MAX		((s64)(U64_MAX>>1))
-
-#include <machine/limits.h>	/* LONG_MAX etc... */
-
-#undef	ALIGN
-#define	ALIGN(x, y)		roundup2((x), (y))
-#define	IS_ALIGNED(x, y)	(((x) & ((y) - 1)) == 0)
-#define	DIV_ROUND_UP		howmany
-#define DIV_ROUND_UP_ULL(X, N)	DIV_ROUND_UP((unsigned long long)(X), (N))
-
-#define udelay(t)       	DELAY(t)
-
-#define container_of(ptr, type, member)				\
-({								\
-	__typeof(((type *)0)->member) *_p = (ptr);		\
-	(type *)((char *)_p - offsetof(type, member));		\
-})
-  
-#define	ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
-
-#define	simple_strtoul	strtoul
-#define	simple_strtol	strtol
-
-#define min(x, y)			((x) < (y) ? (x) : (y))
-#define max(x, y)			((x) > (y) ? (x) : (y))
-
-#define min3(a, b, c)			min(a, min(b,c))
-#define max3(a, b, c)			max(a, max(b,c))
-
-#define min_t(type, _x, _y)		((type)(_x) < (type)(_y) ? (type)(_x) : (type)(_y))
-#define max_t(type, _x, _y)		((type)(_x) > (type)(_y) ? (type)(_x) : (type)(_y))
-
-#define clamp_t(type, _x, min, max)	min_t(type, max_t(type, _x, min), max)
-#define clamp(x, lo, hi)		min( max(x,lo), hi)
-#define clamp_val(val, lo, hi)		clamp_t(typeof(val), val, lo, hi)
-
-/*
- * This looks more complex than it should be. But we need to
- * get the type for the ~ right in round_down (it needs to be
- * as wide as the result!), and we want to evaluate the macro
- * arguments just once each.
- */
-#define __round_mask(x, y) ((__typeof__(x))((y)-1))
-#define round_up(x, y) ((((x)-1) | __round_mask(x, y))+1)
-#define round_down(x, y) ((x) & ~__round_mask(x, y))
-
-#define	num_possible_cpus()	mp_ncpus
-
-typedef struct pm_message {
-        int event;
-} pm_message_t;
-
-/* Swap values of a and b */
-#define swap(a, b)			\
-({					\
-	typeof(a) _swap_tmp = a;	\
-	a = b;				\
-	b = _swap_tmp;			\
-})
-
-#define DIV_ROUND_CLOSEST(x, divisor)	(((x) + ((divisor) /2)) / (divisor))
-
-static inline uintmax_t
-mult_frac(uintmax_t x, uintmax_t multiplier, uintmax_t divisor)
-{
-	uintmax_t q = (x / divisor);
-	uintmax_t r = (x % divisor);
-
-	return ((q * multiplier) + ((r * multiplier) / divisor));
-}
-
-static inline int64_t abs64(int64_t x)
-{
-	return (x < 0 ? -x : x);
-}
-
-#define DIV_ROUND_CLOSEST_ULL(ll, d)	\
- ({ unsigned long long _tmp = (ll)+(d)/2; do_div(_tmp, d); _tmp; })
-
-#define	upper_32_bits(n)	((u32)(((n) >> 16) >> 16))
-#define	lower_32_bits(n)	((u32)(n))
-
-/* Byteorder compat layer */
-#if _BYTE_ORDER == _BIG_ENDIAN
-#define	__BIG_ENDIAN 4321
-#else
-#define	__LITTLE_ENDIAN 1234
 #endif
 
-#define	cpu_to_le16(x)	htole16(x)
-#define	le16_to_cpu(x)	le16toh(x)
-#define	cpu_to_le32(x)	htole32(x)
-#define	le32_to_cpu(x)	le32toh(x)
-#define	le32_to_cpup(x)	le32toh(*x)
+#define S8_MAX		INT8_MAX
+#define S16_MAX		INT16_MAX
+#define S32_MAX		INT32_MAX
+#define S64_MAX		INT64_MAX
 
-#define	cpu_to_be16(x)	htobe16(x)
-#define	be16_to_cpu(x)	be16toh(x)
-#define	cpu_to_be32(x)	htobe32(x)
-#define	be32_to_cpu(x)	be32toh(x)
-#define	be32_to_cpup(x)	be32toh(*x)
+#define U8_MAX		UINT8_MAX
+#define U16_MAX		UINT16_MAX
+#define U32_MAX		UINT32_MAX
 
-static inline int __must_check
-kstrtouint(const char *s, unsigned int base, unsigned int *res)
-{
-	*(res) = strtol(s,0,base);
+#ifndef U64_C
+#if defined(__OpenBSD__)
+#define U64_C(x)	UINT64_C(x)
+#else
+#define U64_C(x)	(x ## UL)	
+#endif
+#endif
 
-	return 0;
-}
+#define U64_MAX		UINT64_MAX
 
-char *kvasprintf(int flags, const char *format, va_list ap);
-char *kasprintf(int flags, const char *format, ...);
+#if defined(__OpenBSD__)
+#define ARRAY_SIZE nitems
+#else
+#define	ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
+#endif
 
-static inline void __user *
-u64_to_user_ptr(u64 address)
-{
-	return (void __user *)(uintptr_t)address;
-}
+#define	lower_32_bits(n)	((u32)(n))
+#define upper_32_bits(_val)	((u32)(((_val) >> 16) >> 16))
 
-static inline void
-might_sleep(void)
-{
-}
+#if defined(__OpenBSD__)
+#define scnprintf(str, size, fmt, arg...) snprintf(str, size, fmt, ## arg)
 
-#define might_sleep_if(cond)
+#else
 
 #define snprintf	ksnprintf
 #define sprintf		ksprintf
@@ -210,6 +146,204 @@ scnprintf(char *buf, size_t size, const char *fmt, ...)
 
 	return (i);
 }
+#endif
+
+#define min_t(t, a, b) ({ \
+	t __min_a = (a); \
+	t __min_b = (b); \
+	__min_a < __min_b ? __min_a : __min_b; })
+
+#define max_t(t, a, b) ({ \
+	t __max_a = (a); \
+	t __max_b = (b); \
+	__max_a > __max_b ? __max_a : __max_b; })
+
+#define clamp_t(t, x, a, b) min_t(t, max_t(t, x, a), b)
+#define clamp(x, a, b) clamp_t(__typeof(x), x, a, b)
+#define clamp_val(x, a, b) clamp_t(__typeof(x), x, a, b)
+
+#if defined(__OpenBSD__)
+#define min(a, b) MIN(a, b)
+#define max(a, b) MAX(a, b)
+#define min3(x, y, z) MIN(x, MIN(y, z))
+#define max3(x, y, z) MAX(x, MAX(y, z))
+#else
+#define min(x, y)			((x) < (y) ? (x) : (y))
+#define max(x, y)			((x) > (y) ? (x) : (y))
+#define min3(a, b, c)			min(a, min(b,c))
+#define max3(a, b, c)			max(a, max(b,c))
+#endif
+
+#define mult_frac(x, n, d) (((x) * (n)) / (d))
+
+#ifndef roundup2
+#define roundup2(x, y) (((x) + ((y) - 1)) & (~((__typeof(x))(y) - 1)))
+#endif
+#define round_up(x, y) ((((x) + ((y) - 1)) / (y)) * (y))
+#define round_down(x, y) (((x) / (y)) * (y)) /* y is power of two */
+#ifndef rounddown
+#define rounddown(x, y) (((x) / (y)) * (y)) /* arbitrary y */
+#endif
+#define DIV_ROUND_UP(x, y)	(((x) + ((y) - 1)) / (y))
+#define DIV_ROUND_UP_ULL(x, y)	DIV_ROUND_UP(x, y)
+#define DIV_ROUND_DOWN(x, y)	((x) / (y))
+#define DIV_ROUND_DOWN_ULL(x, y)	DIV_ROUND_DOWN(x, y)
+#define DIV_ROUND_CLOSEST(x, y)	(((x) + ((y) / 2)) / (y))
+#define DIV_ROUND_CLOSEST_ULL(x, y)	DIV_ROUND_CLOSEST(x, y)
+
+#define IS_ALIGNED(x, y)	(((x) & ((y) - 1)) == 0)
+#define PTR_ALIGN(x, y)		((__typeof(x))roundup2((unsigned long)(x), (y)))
+
+#undef	ALIGN
+#define	ALIGN(x, y)		roundup2((x), (y))
+
+#if defined(__OpenBSD__)
+static inline char *
+kvasprintf(int flags, const char *fmt, va_list ap)
+{
+	char *buf;
+	size_t len;
+	va_list vl;
+
+	va_copy(vl, ap);
+	len = vsnprintf(NULL, 0, fmt, vl);
+	va_end(vl);
+
+	buf = malloc(len + 1, M_DRM, flags);
+	if (buf) {
+		vsnprintf(buf, len + 1, fmt, ap);
+	}
+
+	return buf;
+}
+
+static inline char *
+kasprintf(int flags, const char *fmt, ...)
+{
+	char *buf;
+	va_list ap;
+
+	va_start(ap, fmt);
+	buf = kvasprintf(flags, fmt, ap);
+	va_end(ap);
+
+	return buf;
+}
+
+static inline int
+vscnprintf(char *buf, size_t size, const char *fmt, va_list ap)
+{
+	int nc;
+
+	nc = vsnprintf(buf, size, fmt, ap);
+	if (nc > (size - 1))
+		return (size - 1);
+	else
+		return nc;
+}
+#else
+char *kvasprintf(int flags, const char *format, va_list ap);
+char *kasprintf(int flags, const char *format, ...);
+#endif
+
+#if defined(__OpenBSD__)
+static inline int
+_in_dbg_master(void)
+{
+#ifdef DDB
+	return (db_active);
+#endif
+	return (0);
+}
+
+#define oops_in_progress _in_dbg_master()
+#else
+#define oops_in_progress	(panicstr != NULL)
+#endif
+
+#if defined(__OpenBSD__)
+#define might_sleep()		assertwaitok()
+#define might_sleep_if(x)	do {	\
+	if (x)				\
+		assertwaitok();		\
+} while (0)
+#else
+static inline void
+might_sleep(void)
+{
+}
+
+#define might_sleep_if(cond)
+#endif
+
+#define add_taint(x, y)
+#define TAINT_MACHINE_CHECK	0
+#define TAINT_WARN		1
+#define LOCKDEP_STILL_OK	0
+
+#define u64_to_user_ptr(x)	((void *)(uintptr_t)(x))
+
+#define _RET_IP_		__builtin_return_address(0)
+
+#if defined(__OpenBSD__)
+#define STUB() do { printf("%s: stub\n", __func__); } while(0)
+#else
+#define STUB() do { kprintf("%s: stub\n", __func__); } while(0);
+#endif
+
+#if 0 /* moved to linux/delay.h */
+#define udelay(t)       	DELAY(t)
+#endif
+
+#define	simple_strtoul	strtoul
+#define	simple_strtol	strtol
+
+#define	num_possible_cpus()	mp_ncpus
+
+#if 0
+typedef struct pm_message {
+        int event;
+} pm_message_t;
+#endif
+
+static inline int64_t abs64(int64_t x)
+{
+	return (x < 0 ? -x : x);
+}
+
+#if 0
+#define	le16_to_cpu(x)	le16toh(x)
+#define	le32_to_cpu(x)	le32toh(x)
+#define	le64_to_cpu(x)	le64toh(x)
+
+#define	be16_to_cpu(x)	be16toh(x)
+#define	be32_to_cpu(x)	be32toh(x)
+#define	be64_to_cpu(x)	be64toh(x)
+
+#define	le16_to_cpup(x)	le16toh(*x)
+#define	le32_to_cpup(x)	le32toh(*x)
+#define	le64_to_cpup(x)	le64toh(*x)
+
+#define	be16_to_cpup(x)	be16toh(*x)
+#define	be32_to_cpup(x)	be32toh(*x)
+#define	be64_to_cpup(x)	be64toh(*x)
+
+#define	cpu_to_le16(x)	htole16(x)
+#define	cpu_to_le32(x)	htole32(x)
+#define	cpu_to_le64(x)	htole64(x)
+
+#define	cpu_to_be16(x)	htobe16(x)
+#define	cpu_to_be32(x)	htobe32(x)
+#define	cpu_to_be64(x)	htobe64(x)
+#endif
+
+static inline int __must_check
+kstrtouint(const char *s, unsigned int base, unsigned int *res)
+{
+	*(res) = strtol(s,0,base);
+
+	return 0;
+}
 
 static inline int
 kstrtol(const char *cp, unsigned int base, long *res)
@@ -226,20 +360,4 @@ kstrtol(const char *cp, unsigned int base, long *res)
 	return (0);
 }
 
-#define oops_in_progress	(panicstr != NULL)
-
-enum lockdep_ok {
-	LOCKDEP_STILL_OK,
-	LOCKDEP_NOW_UNRELIABLE
-};
-
-#define TAINT_MACHINE_CHECK	4
-
-static inline void
-add_taint(unsigned flag, enum lockdep_ok lo)
-{
-}
-
-#define STUB() do { kprintf("%s: stub\n", __func__); } while(0);
-
-#endif	/* _LINUX_KERNEL_H_ */
+#endif

@@ -38,7 +38,7 @@
 #include "i915_gemfs.h"
 #include <linux/dma-fence-array.h>
 #include <linux/kthread.h>
-#include <linux/reservation.h>
+#include <linux/dma-resv.h>
 #include <linux/shmem_fs.h>
 #include <linux/slab.h>
 #include <linux/stop_machine.h>
@@ -422,7 +422,7 @@ out:
 }
 
 static long
-i915_gem_object_wait_reservation(struct reservation_object *resv,
+i915_gem_object_wait_reservation(struct dma_resv *resv,
 				 unsigned int flags,
 				 long timeout,
 				 struct intel_rps_client *rps_client)
@@ -436,7 +436,7 @@ i915_gem_object_wait_reservation(struct reservation_object *resv,
 		unsigned int count, i;
 		int ret;
 
-		ret = reservation_object_get_fences_rcu(resv,
+		ret = dma_resv_get_fences(resv,
 							&excl, &count, &shared);
 		if (ret)
 			return ret;
@@ -457,7 +457,7 @@ i915_gem_object_wait_reservation(struct reservation_object *resv,
 
 		prune_fences = count && timeout >= 0;
 	} else {
-		excl = reservation_object_get_excl_rcu(resv);
+		excl = dma_resv_get_excl_unlocked(resv);
 	}
 
 	if (excl && timeout >= 0) {
@@ -473,10 +473,10 @@ i915_gem_object_wait_reservation(struct reservation_object *resv,
 	 * no new fences have been added).
 	 */
 	if (prune_fences && !__read_seqcount_retry(&resv->seq, seq)) {
-		if (reservation_object_trylock(resv)) {
+		if (dma_resv_trylock(resv)) {
 			if (!__read_seqcount_retry(&resv->seq, seq))
-				reservation_object_add_excl_fence(resv, NULL);
-			reservation_object_unlock(resv);
+				dma_resv_add_excl_fence(resv, NULL);
+			dma_resv_unlock(resv);
 		}
 	}
 
@@ -525,7 +525,7 @@ i915_gem_object_wait_priority(struct drm_i915_gem_object *obj,
 		unsigned int count, i;
 		int ret;
 
-		ret = reservation_object_get_fences_rcu(obj->resv,
+		ret = dma_resv_get_fences(obj->resv,
 							&excl, &count, &shared);
 		if (ret)
 			return ret;
@@ -537,7 +537,7 @@ i915_gem_object_wait_priority(struct drm_i915_gem_object *obj,
 
 		kfree(shared);
 	} else {
-		excl = reservation_object_get_excl_rcu(obj->resv);
+		excl = dma_resv_get_excl_unlocked(obj->resv);
 	}
 
 	if (excl) {
@@ -4545,7 +4545,7 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_i915_gem_busy *args = data;
 	struct drm_i915_gem_object *obj;
-	struct reservation_object_list *list;
+	struct dma_resv_list *list;
 	unsigned int seq;
 	int err;
 
@@ -4567,7 +4567,7 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	 * Alternatively, we can trade that extra information on read/write
 	 * activity with
 	 *	args->busy =
-	 *		!reservation_object_test_signaled_rcu(obj->resv, true);
+	 *		!dma_resv_test_signaled_rcu(obj->resv, true);
 	 * to report the overall busyness. This is what the wait-ioctl does.
 	 *
 	 */
@@ -4683,7 +4683,7 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 
 	obj->ops = ops;
 
-	reservation_object_init(&obj->__builtin_resv);
+	dma_resv_init(&obj->__builtin_resv);
 	obj->resv = &obj->__builtin_resv;
 
 	obj->frontbuffer_ggtt_origin = ORIGIN_GTT;
@@ -4898,7 +4898,7 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 		if (obj->base.import_attach)
 			drm_prime_gem_destroy(&obj->base, NULL);
 
-		reservation_object_fini(&obj->__builtin_resv);
+		dma_resv_fini(&obj->__builtin_resv);
 		drm_gem_object_release(&obj->base);
 		i915_gem_info_remove_obj(i915, obj->base.size);
 

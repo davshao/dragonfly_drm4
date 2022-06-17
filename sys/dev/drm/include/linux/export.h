@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2013-2019 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,10 +26,21 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_EXPORT_H_
-#define _LINUX_EXPORT_H_
+#ifndef _LINUX_EXPORT_H
+#define _LINUX_EXPORT_H
 
-#define EXPORT_SYMBOL(name)
-#define EXPORT_SYMBOL_GPL(name)
+#include <linux/kconfig.h>
+ 
+#define EXPORT_SYMBOL(x)
+#define EXPORT_SYMBOL_GPL(x)
 
-#endif	/* _LINUX_EXPORT_H_ */
+#ifndef THIS_MODULE
+#if defined(__OpenBSD__)
+#define THIS_MODULE	NULL
+#else
+struct module;
+#define THIS_MODULE	((struct module *)0)
+#endif
+#endif
+
+#endif

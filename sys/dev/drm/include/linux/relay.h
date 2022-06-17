@@ -27,6 +27,7 @@
 #ifndef _LINUX_RELAY_H_
 #define _LINUX_RELAY_H_
 
+#if 0
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
@@ -36,6 +37,7 @@
 #include <linux/fs.h>
 #include <linux/poll.h>
 #include <linux/kref.h>
+#endif
 
 struct rchan_buf {
 };

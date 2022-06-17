@@ -27,6 +27,7 @@
 #ifndef _ASM_MEMORY_MODEL_H_
 #define _ASM_MEMORY_MODEL_H_
 
+#if 0
 #include <vm/vm_object.h>
 
 static inline unsigned long
@@ -42,5 +43,6 @@ pfn_to_page(unsigned long pfn)
 {
 	return (struct page *)PHYS_TO_VM_PAGE(pfn << PAGE_SHIFT);
 }
+#endif
 
 #endif	/* _ASM_MEMORY_MODEL_H_ */

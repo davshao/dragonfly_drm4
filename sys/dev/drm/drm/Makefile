@@ -1,18 +1,28 @@
 .PATH:	${.CURDIR}/.. ${.CURDIR}/../ttm
 KMOD	= drm
 SRCS	= \
+	dma-resv.c \
+	drm_aperture.c \
 	drm_atomic.c \
 	drm_atomic_helper.c \
+	drm_atomic_state_helper.c \
+	drm_atomic_uapi.c \
 	drm_auth.c \
 	drm_blend.c \
 	drm_bridge.c \
 	drm_bufs.c \
 	drm_cache.c \
+	drm_client.c \
+	drm_client_modeset.c \
 	drm_color_mgmt.c \
 	drm_connector.c \
 	drm_context.c \
 	drm_crtc.c \
 	drm_crtc_helper.c \
+	drm_damage_helper.c \
+	drm_debugfs.c \
+	drm_debugfs_crc.c \
+	drm_displayid.c \
 	drm_dma.c \
 	drm_dp_aux_dev.c \
 	drm_dp_dual_mode_helper.c \
@@ -20,6 +30,7 @@ SRCS	= \
 	drm_dp_mst_topology.c \
 	drm_dragonfly.c \
 	drm_drv.c \
+	drm_dsc.c \
 	drm_dumb_buffers.c \
 	drm_edid.c \
 	drm_edid_load.c \
@@ -27,15 +38,26 @@ SRCS	= \
 	drm_encoder_slave.c \
 	drm_fb_helper.c \
 	drm_file.c \
+	drm_flip_work.c \
+	drm_format_helper.c \
 	drm_fourcc.c \
 	drm_framebuffer.c \
 	drm_gem.c \
+	drm_gem_atomic_helper.c \
+	drm_gem_cma_helper.c \
 	drm_gem_framebuffer_helper.c \
+	drm_gem_ttm_helper.c \
 	drm_global.c \
 	drm_hashtab.c \
+	drm_hdcp.c \
+	drm_ioc32.c \
 	drm_ioctl.c \
 	drm_irq.c \
+	drm_kms_helper_common.c \
+	drm_legacy_misc.c \
+	drm_linux.c \
 	drm_lock.c \
+	drm_managed.c \
 	drm_memory.c \
 	drm_mipi_dsi.c \
 	drm_mm.c \
@@ -45,6 +67,7 @@ SRCS	= \
 	drm_modeset_lock.c \
 	drm_modeset_helper.c \
 	drm_panel.c \
+	drm_panel_orientation_quirks.c \
 	drm_pci.c \
 	drm_plane.c \
 	drm_plane_helper.c \
@@ -55,12 +78,16 @@ SRCS	= \
 	drm_rect.c \
 	drm_scatter.c \
 	drm_scdc_helper.c \
+	drm_self_refresh_helper.c \
 	drm_syncobj.c \
 	drm_sysctl.c \
 	drm_sysfs.c \
+	drm_trace_points.c \
 	drm_vblank.c \
+	drm_vblank_work.c \
 	drm_vm.c \
 	drm_vma_manager.c \
+	hdmi.c \
 	linux_async.c \
 	linux_compat.c \
 	linux_completion.c \
@@ -69,6 +96,7 @@ SRCS	= \
 	linux_dmi.c \
 	linux_fence.c \
 	linux_fence-array.c \
+	linux_file.c \
 	linux_hdmi.c \
 	linux_hrtimer.c \
 	linux_i2c.c \
@@ -78,6 +106,7 @@ SRCS	= \
 	linux_kobject.c \
 	linux_kthread.c \
 	linux_list_sort.c \
+	linux_page.c \
 	linux_pci.c \
 	linux_printf.c \
 	linux_radix.c \
@@ -85,7 +114,9 @@ SRCS	= \
 	linux_reservation.c \
 	linux_scatterlist.c \
 	linux_sched.c \
+	linux_seq_file.c \
 	linux_shmem.c \
+	linux_shrinker.c \
 	linux_sort.c \
 	linux_tasklet.c \
 	linux_vmalloc.c \
@@ -103,6 +134,11 @@ SRCS	= \
 	ttm_execbuf_util.c \
 	ttm_page_alloc.c \
 	ttm_bo_manager.c \
+	ttm_device.c \
+	ttm_pool.c \
+	ttm_range_manager.c \
+	ttm_resource.c \
+	ttm_sys_manager.c \
 	ttm_page_alloc_dma.c
 
 # if CONFIG_AGP is set

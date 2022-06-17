@@ -27,8 +27,15 @@
 #ifndef _ASM_PGTABLE_TYPES_H_
 #define _ASM_PGTABLE_TYPES_H_
 
+#if 0
+#include <sys/types.h>
 #include <cpu/pmap.h>
+#include <vm/vm.h>
 
+#include <linux/types.h>
+#endif
+
+#if 0
 #define _PAGE_PRESENT	X86_PG_V
 #define _PAGE_RW	X86_PG_RW
 #define _PAGE_PWT	X86_PG_NC_PWT
@@ -50,14 +57,22 @@
 
 #define PAGE_KERNEL	__PAGE_KERNEL
 #define PAGE_KERNEL_IO	__PAGE_KERNEL
+#endif
 
+#if 0
 static inline pgprot_t
 pgprot_writecombine(pgprot_t prot)
 {
 	return (prot | VM_MEMATTR_WRITE_COMBINING);
 }
+#endif
 
+#if 0
 #define __pgprot(value)	((pgprot_t) {(value)})
+#endif
+
+#if 0
 #define pgprot_val(x)	(x)
+#endif
 
 #endif	/* _ASM_PGTABLE_TYPES_H_ */

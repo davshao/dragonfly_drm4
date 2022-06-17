@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,31 +26,103 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_REFCOUNT_H_
-#define _LINUX_REFCOUNT_H_
+#ifndef _LINUX_REFCOUNT_H
+#define _LINUX_REFCOUNT_H
 
+#include <sys/lock.h>
+#include <machine/limits.h>
+
+#include <sys/types.h>
 #include <linux/atomic.h>
+#if 0
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 #include <linux/kernel.h>
+#endif
 
+#if defined(__OpenBSD__)
+typedef atomic_t refcount_t;
+#else
 typedef struct refcount_struct {
 	atomic_t refs;
 } refcount_t;
+#endif
+
+
+#if defined(__OpenBSD__)
+static inline bool
+refcount_dec_and_test(uint32_t *p)
+{
+	return atomic_dec_and_test(p);
+}
+#else
+static inline bool
+refcount_dec_and_test(refcount_t *p)
+{
+	return atomic_dec_and_test(&p->refs);
+}
+#endif
+
+#if defined(__OpenBSD__)
+static inline bool
+refcount_inc_not_zero(uint32_t *p)
+{
+	return atomic_inc_not_zero(p);
+}
+#else
+static inline bool
+refcount_inc_not_zero(refcount_t *p)
+{
+	return atomic_inc_not_zero(&p->refs);
+}
+#endif
+
+#if defined(__OpenBSD__)
+static inline void
+refcount_set(uint32_t *p, int v)
+{
+	atomic_set(p, v);
+}
+#else
+static inline void
+refcount_set(refcount_t *p, unsigned int v)
+{
+	atomic_set(&p->refs, v);
+}
+#endif
+
+#if defined(__OpenBSD__)
+static inline bool
+refcount_dec_and_lock_irqsave(volatile int *v, struct mutex *lock,
+    unsigned long *flags)
+{
+	if (atomic_add_unless(v, -1, 1))
+		return false;
+
+	mtx_enter(lock);
+	if (atomic_dec_return(v) == 0)
+		return true;
+	mtx_leave(lock);
+	return false;
+}
+#else
+/* not sure, ported from OpenBSD */
+static inline bool
+refcount_dec_and_lock_irqsave(refcount_t *v, struct lock *lock,
+    unsigned long *flags)
+{
+	if (atomic_add_unless(&v->refs, -1, 1))
+		return false;
+
+	lockmgr(lock, LK_EXCLUSIVE);
+	if (atomic_dec_return(&v->refs) == 0)
+		return true;
+	lockmgr(lock, LK_RELEASE);
+	return false;
+}
+#endif
 
 #define REFCOUNT_SATURATED	(INT_MIN / 2)
-
-static inline void
-refcount_set(refcount_t *r, unsigned int n)
-{
-	atomic_set(&r->refs, n);
-}
-
-static inline bool
-refcount_dec_and_test(refcount_t *r)
-{
-	return atomic_dec_and_test(&r->refs);
-}
 
 static inline void
 refcount_inc(refcount_t *r)
@@ -59,4 +133,4 @@ refcount_inc(refcount_t *r)
 		refcount_set(r, REFCOUNT_SATURATED);
 }
 
-#endif	/* _LINUX_REFCOUNT_H_ */
+#endif

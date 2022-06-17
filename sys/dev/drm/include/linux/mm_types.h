@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2018-2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,21 +26,39 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_MM_TYPES_H_
-#define _LINUX_MM_TYPES_H_
+#ifndef _LINUX_MM_TYPES_H
+#define _LINUX_MM_TYPES_H
 
+#if 0
 #include <linux/types.h>
 #include <linux/threads.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/rbtree.h>
-#include <linux/rwsem.h>
-#include <linux/completion.h>
 #include <linux/cpumask.h>
+#endif
 #include <linux/workqueue.h>
-#include <asm/page.h>
+#include <linux/completion.h>
+#include <linux/rwsem.h>
+// #include <asm/page.h>
 
+#if defined(__OpenBSD__)
+#include <uvm/uvm_extern.h>
+#else
 #include <vm/vm_page.h>
+#endif
+
+#if defined(__OpenBSD__)
+#define VM_FAULT_NOPAGE		1
+#define VM_FAULT_SIGBUS		2
+#define VM_FAULT_RETRY		3
+#define VM_FAULT_OOM		4
+#else
+#define VM_FAULT_NOPAGE		0x0001
+#define VM_FAULT_SIGBUS		0x0002
+#define VM_FAULT_RETRY		0x0400
+#define VM_FAULT_OOM		0x0004
+#endif
 
 struct address_space;
 
@@ -69,4 +89,4 @@ struct vm_area_struct {
 	struct mm_struct *vm_mm;
 };
 
-#endif	/* _LINUX_MM_TYPES_H_ */
+#endif

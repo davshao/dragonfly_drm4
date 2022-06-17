@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2018 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,10 +26,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_LINKAGE_H_
-#define _LINUX_LINKAGE_H_
+#ifndef _LINUX_LINKAGE_H
+#define _LINUX_LINKAGE_H
 
-#include <linux/stringify.h>
 #include <linux/export.h>
+#include <linux/stringify.h>
 
-#endif	/* _LINUX_LINKAGE_H_ */
+#endif

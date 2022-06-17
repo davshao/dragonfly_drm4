@@ -27,10 +27,12 @@
 #ifndef _ASM_IOMAP_H_
 #define _ASM_IOMAP_H_
 
+#if 0
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/uaccess.h>
 #include <asm/cacheflush.h>
 #include <asm/pgtable.h>
+#endif
 
 #endif	/* _ASM_IOMAP_H_ */

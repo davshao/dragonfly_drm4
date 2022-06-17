@@ -27,6 +27,7 @@
 #ifndef _LINUX_INPUT_H_
 #define _LINUX_INPUT_H_
 
+#if 0
 #include <linux/time.h>
 #include <linux/list.h>
 
@@ -34,5 +35,6 @@
 #include <linux/fs.h>
 #include <linux/timer.h>
 #include <linux/mod_devicetable.h>
+#endif
 
 #endif	/* _LINUX_INPUT_H_ */
