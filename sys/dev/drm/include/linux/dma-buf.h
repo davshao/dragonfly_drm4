@@ -1,3 +1,20 @@
+/*	$OpenBSD: dma-buf.h,v 1.4 2022/03/01 04:08:04 jsg Exp $	*/
+/*
+ * Copyright (c) 2018 Mark Kettenis
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
 /*
  * Copyright (c) 2018-2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,21 +41,83 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef LINUX_DMA_BUF_H
-#define LINUX_DMA_BUF_H
+#ifndef _LINUX_DMA_BUF_H
+#define _LINUX_DMA_BUF_H
 
-#include <linux/err.h>
-#include <linux/scatterlist.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <linux/dma-resv.h>
 #include <linux/list.h>
-#include <linux/dma-mapping.h>
-#include <linux/fs.h>
-#include <linux/dma-fence.h>
-#include <linux/wait.h>
+// #include <linux/err.h>
+// #include <linux/scatterlist.h>
+// #include <linux/dma-mapping.h>
+#include <linux/dma-direction.h>
+// #include <linux/fs.h>
+// #include <linux/dma-fence.h>
+// #include <linux/wait.h>
 
-#include <linux/slab.h>
+// #include <linux/slab.h>
 
-struct dma_buf;
-struct dma_buf_attachment;
+struct dma_buf_ops;
+struct device;
+
+struct dma_buf {
+	const struct dma_buf_ops *ops;
+	void *priv;
+	size_t size;
+	struct file *file;
+	struct list_head attachments;
+	struct dma_resv *resv;
+};
+
+struct dma_buf_attachment {
+	void *importer_priv;
+	struct dma_buf *dmabuf;
+	struct device *dev;
+	void *priv;
+};
+
+struct dma_buf_attach_ops {
+	void (*move_notify)(struct dma_buf_attachment *);
+	bool allow_peer2peer;
+};
+
+void	get_dma_buf(struct dma_buf *);
+
+#if 0 /* previous DragonFly */
+static inline void
+get_dma_buf(struct dma_buf *dmabuf)
+{
+#if defined (__OpenBSD__) /* from dma_linux.c */
+	FREF(dmabuf->file);
+#else
+	fhold(dmabuf->file);
+#endif
+}
+#endif
+
+struct dma_buf *dma_buf_get(int);
+
+void	dma_buf_put(struct dma_buf *);
+
+#if 0 /* previous DragonFly */
+static inline void
+dma_buf_put(struct dma_buf *dmabuf)
+{
+	if (dmabuf == NULL)
+		return;
+
+	if (dmabuf->file == NULL)
+		return;
+
+	fdrop(dmabuf->file);
+}
+#endif
+
+int dma_buf_fd(struct dma_buf *, int);
+
+struct sg_table;
+struct vm_area_struct;
 
 struct dma_buf_ops {
 	struct sg_table * (*map_dma_buf)(struct dma_buf_attachment *,
@@ -60,41 +139,26 @@ struct dma_buf_ops {
 	void (*detach)(struct dma_buf *, struct dma_buf_attachment *);
 };
 
-struct dma_buf {
-	struct reservation_object *resv;
-	void *priv;
-	const struct dma_buf_ops *ops;
-	size_t size;
-	struct file *file;
-};
-
-struct dma_buf_attachment {
-	struct dma_buf *dmabuf;
-	struct device *dev;
-	void *priv;
-};
-
 struct dma_buf_export_info {
 	const struct dma_buf_ops *ops;
 	size_t size;
 	int flags;
 	void *priv;
-	struct reservation_object *resv;
+	struct dma_resv *resv;
 };
 
-struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info);
+#if defined(__OpenBSD__)
+#define DEFINE_DMA_BUF_EXPORT_INFO(x)  struct dma_buf_export_info x
+#else
+#define DEFINE_DMA_BUF_EXPORT_INFO(x)  struct dma_buf_export_info x = {}
+#endif
 
-#define DEFINE_DMA_BUF_EXPORT_INFO(name)	\
-	struct dma_buf_export_info name = {	\
-	}
+struct dma_buf *dma_buf_export(const struct dma_buf_export_info *);
 
-struct sg_table * dma_buf_map_attachment(struct dma_buf_attachment *,
-						enum dma_data_direction);
-void dma_buf_unmap_attachment(struct dma_buf_attachment *,
-				struct sg_table *, enum dma_data_direction);
-
+struct dma_buf_attachment *dma_buf_attach(struct dma_buf *, struct device *);
+#if 0 /* previous DragonFly */
 static inline struct dma_buf_attachment *
-dma_buf_attach(struct dma_buf *dmabuf, struct device *dev)
+dma_buf_attach(struct dma_buf *buf, struct device *dev)
 {
 	/* XXX: this function is a stub */
 	struct dma_buf_attachment *attach;
@@ -103,34 +167,24 @@ dma_buf_attach(struct dma_buf *dmabuf, struct device *dev)
 
 	return attach;
 }
+#endif
 
+void dma_buf_detach(struct dma_buf *, struct dma_buf_attachment *);
+#if 0 /* previous DragonFly */
 static inline void
-get_dma_buf(struct dma_buf *dmabuf)
+dma_buf_detach(struct dma_buf *buf, struct dma_buf_attachment *dba)
 {
-	fhold(dmabuf->file);
-}
-
-static inline void
-dma_buf_put(struct dma_buf *dmabuf)
-{
-	if (dmabuf == NULL)
-		return;
-
-	if (dmabuf->file == NULL)
-		return;
-
-	fdrop(dmabuf->file);
-}
-
-int dma_buf_fd(struct dma_buf *dmabuf, int flags);
-
-struct dma_buf *dma_buf_get(int fd);
-
-static inline void
-dma_buf_detach(struct dma_buf *dmabuf,
-	       struct dma_buf_attachment *dmabuf_attach)
-{
+#if defined(__OpenBSD__)
+	panic("dma_buf_detach");
+#else
 	kprintf("dma_buf_detach: Not implemented\n");
+#endif
 }
+#endif
 
-#endif /* LINUX_DMA_BUF_H */
+struct sg_table * dma_buf_map_attachment(struct dma_buf_attachment *,
+						enum dma_data_direction);
+void dma_buf_unmap_attachment(struct dma_buf_attachment *,
+				struct sg_table *, enum dma_data_direction);
+
+#endif

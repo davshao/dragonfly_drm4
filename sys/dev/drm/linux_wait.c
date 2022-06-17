@@ -24,9 +24,28 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/*	$OpenBSD: drm_linux.c,v 1.94 2022/09/16 01:48:07 jsg Exp $	*/
+/*
+ * Copyright (c) 2013 Jonathan Gray <jsg@openbsd.org>
+ * Copyright (c) 2015, 2016 Mark Kettenis <kettenis@openbsd.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
 #include <linux/wait.h>
 #include <linux/wait_bit.h>
 #include <linux/sched.h>
+#include <linux/atomic.h>
 
 int
 default_wake_function(wait_queue_entry_t *q, unsigned mode, int wake_flags, void *key)
@@ -100,6 +119,13 @@ wake_up_bit(void *addr, int bit)
 	wakeup_one(addr);
 }
 
+void
+clear_and_wake_up_bit(int bit, void *word)
+{
+	clear_bit(bit, word);
+	wake_up_bit(word, bit);
+}
+
 /* Wait for a bit to be cleared or a timeout to expire */
 int
 wait_on_bit_timeout(unsigned long *word, int bit, unsigned mode,
@@ -130,12 +156,14 @@ wait_on_bit_timeout(unsigned long *word, int bit, unsigned mode,
 	return 1;
 }
 
+#if 0
 void __init_waitqueue_head(wait_queue_head_t *q,
 			   const char *name, struct lock_class_key *key)
 {
 	lockinit(&q->lock, "lwq", 0, 0);
 	INIT_LIST_HEAD(&q->head);
 }
+#endif
 
 int
 wait_on_bit(unsigned long *word, int bit, unsigned mode)
@@ -143,6 +171,7 @@ wait_on_bit(unsigned long *word, int bit, unsigned mode)
 	return wait_on_bit_timeout(word, bit, mode, MAX_SCHEDULE_TIMEOUT);
 }
 
+#if 0
 void
 init_wait_entry(struct wait_queue_entry *wq_entry, int flags)
 {
@@ -151,3 +180,4 @@ init_wait_entry(struct wait_queue_entry *wq_entry, int flags)
 	wq_entry->private = current;
 	wq_entry->func = autoremove_wake_function;
 }
+#endif

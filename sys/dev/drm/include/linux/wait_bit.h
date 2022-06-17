@@ -24,14 +24,14 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_WAIT_BIT_H_
-#define _LINUX_WAIT_BIT_H_
+#ifndef _LINUX_WAIT_BIT_H
+#define _LINUX_WAIT_BIT_H
 
 #include <linux/wait.h>
 
-int wait_on_bit_timeout(unsigned long *word, int bit,
-			unsigned mode, unsigned long timeout);
-
-int wait_on_bit(unsigned long *word, int bit, unsigned mode);
+int wait_on_bit(unsigned long *, int, unsigned);
+int wait_on_bit_timeout(unsigned long *, int, unsigned, unsigned long);
+void wake_up_bit(void *, int);
+void clear_and_wake_up_bit(int, void *);
 
 #endif	/* _LINUX_WAIT_BIT_H_ */

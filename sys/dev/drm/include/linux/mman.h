@@ -27,8 +27,10 @@
 #ifndef _LINUX_MMAN_H_
 #define _LINUX_MMAN_H_
 
+#if 0
 #include <linux/mm.h>
 
 #include <linux/atomic.h>
+#endif
 
 #endif	/* _LINUX_MMAN_H_ */
