@@ -27,6 +27,7 @@
 #ifndef _LINUX_I2C_ALGO_BIT_H_
 #define _LINUX_I2C_ALGO_BIT_H_
 
+#if 0
 struct i2c_algo_bit_data {
 	void *data;
 	void (*setsda) (void *data, int state);
@@ -42,5 +43,6 @@ struct i2c_algo_bit_data {
 
 int i2c_bit_add_bus(struct i2c_adapter *);
 extern const struct i2c_algorithm i2c_bit_algo;
+#endif
 
 #endif	/* _LINUX_I2C_ALGO_BIT_H_ */

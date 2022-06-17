@@ -27,8 +27,10 @@
 #ifndef _ASM_PGALLOC_H
 #define _ASM_PGALLOC_H
 
+#if 0
 #include <linux/threads.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
+#endif
 
 #endif /* _ASM_PGALLOC_H */

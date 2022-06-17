@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2017-2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,21 +26,43 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_REBOOT_H_
-#define _LINUX_REBOOT_H_
+#ifndef _LINUX_REBOOT_H
+#define _LINUX_REBOOT_H
 
-#include <linux/notifier.h>
+// #include <sys/systm.h>
+#include <sys/reboot.h>
+// #include <linux/notifier.h>
 
-static inline int
-register_reboot_notifier(struct notifier_block *unused)
+struct notifier_block;
+
+#define SYS_RESTART 0
+
+static inline void
+register_reboot_notifier(struct notifier_block *nb)
 {
-	return 0;
+//	return 0;
 }
 
-static inline int
-unregister_reboot_notifier(struct notifier_block *unused)
+static inline void 
+unregister_reboot_notifier(struct notifier_block *nb)
 {
-	return 0;
+//	return 0;
 }
 
-#endif	/* _LINUX_REBOOT_H_ */
+static inline void
+orderly_poweroff(bool force)
+{
+#if defined(__OpenBSD__)
+	if (force)
+		reboot(RB_HALT | RB_POWERDOWN | RB_NOSYNC);
+	else
+		reboot(RB_HALT | RB_POWERDOWN);
+#else
+	if (force)
+		shutdown_nice(RB_HALT | RB_POWEROFF | RB_NOSYNC);
+	else
+		shutdown_nice(RB_HALT | RB_POWEROFF);
+#endif
+}
+
+#endif

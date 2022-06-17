@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2015-2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,29 +26,77 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_SLAB_H_
-#define _LINUX_SLAB_H_
+#ifndef _LINUX_SLAB_H
+#define _LINUX_SLAB_H
 
-#include <linux/gfp.h>
+#include <sys/types.h>
+#include <sys/malloc.h>
+
 #include <linux/types.h>
+#if defined(__OpenBSD__)
+#include <linux/workqueue.h>
+#endif
+#include <linux/gfp.h>
+
+#include <linux/processor.h>	/* for CACHELINESIZE */
 
 MALLOC_DECLARE(M_DRM);
 
-#define kzalloc(size, flags)	kmalloc(size, M_DRM, flags | M_ZERO)
+#if defined(__OpenBSD__)
+static inline void *
+kmalloc(size_t size, int flags)
+{
+	return malloc(size, M_DRM, flags);
+}
+#else
+#define drm_kmalloc(n, flags)	__kmalloc(n, M_DRM, flags)
+#endif
 
+static inline void *
+kmalloc_array(size_t n, size_t size, int flags)
+{
+#if defined(__OpenBSD__)
+	if (n != 0 && SIZE_MAX / n < size)
+		return NULL;
+	return malloc(n * size, M_DRM, flags);
+#else
+	return __kmalloc(n * size, M_DRM, flags);
+#endif
+}
+
+#if defined(__OpenBSD__)
+static inline void *
+kcalloc(size_t n, size_t size, int flags)
+{
+	if (n != 0 && SIZE_MAX / n < size)
+		return NULL;
+	return malloc(n * size, M_DRM, flags | M_ZERO);
+}
+
+static inline void *
+kzalloc(size_t size, int flags)
+{
+	return malloc(size, M_DRM, flags | M_ZERO);
+}
+#else
+#define kzalloc(size, flags)	__kmalloc(size, M_DRM, flags | M_ZERO)
+
+#define kcalloc(n, size, flags)	kzalloc((n) * (size), flags)
+#endif
+
+#if defined(__OpenBSD__)
+static inline void
+kfree(const void *objp)
+{
+	free((void *)objp, M_DRM, 0);
+}
+#else
 #undef kfree
 #define kfree(ptr)	do {			\
 	if (ptr != NULL)			\
 		_kfree((void *)ptr, M_DRM);	\
 } while (0)
-
-#define kcalloc(n, size, flags)	kzalloc((n) * (size), flags)
-
-static inline void *
-kmalloc_array(size_t n, size_t size, gfp_t flags)
-{
-	return kmalloc(n * size, M_DRM, flags);
-}
+#endif
 
 #include <linux/kasan.h>
 
@@ -83,7 +133,7 @@ kmem_cache_destroy(struct kmem_cache *kc)
 static inline void *
 kmem_cache_alloc(struct kmem_cache *kc, gfp_t flags)
 {
-	return kmalloc(kc->size, M_DRM, flags);
+	return __kmalloc(kc->size, M_DRM, flags);
 }
 
 static inline void *
@@ -98,4 +148,4 @@ kmem_cache_free(struct kmem_cache *kc, void *ptr)
 	kfree(ptr);
 }
 
-#endif	/* _LINUX_SLAB_H_ */
+#endif

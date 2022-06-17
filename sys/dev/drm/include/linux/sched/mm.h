@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,14 +26,25 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_SCHED_MM_H_
-#define _LINUX_SCHED_MM_H_
+#ifndef _LINUX_SCHED_MM_H
+#define _LINUX_SCHED_MM_H
 
-#include <linux/kernel.h>
+// #include <linux/kernel.h>
 #include <linux/atomic.h>
-#include <linux/sched.h>
+// #include <linux/sched.h>
 #include <linux/mm_types.h>
-#include <linux/gfp.h>
+// #include <linux/gfp.h>
+
+static inline void
+might_alloc(const unsigned int flags)
+{
+#if defined(__OpenBSD__)
+	if (flags & M_WAITOK)
+		assertwaitok();
+#else
+/* test globaldata gd_trap_nesting_level gd_spinlocks ? */
+#endif
+}
 
 static inline bool
 mmget_not_zero(struct mm_struct *mm)
@@ -41,4 +54,4 @@ mmget_not_zero(struct mm_struct *mm)
 
 void mmput(struct mm_struct *);
 
-#endif	/* _LINUX_SCHED_MM_H_ */
+#endif

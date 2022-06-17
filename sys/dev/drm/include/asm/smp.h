@@ -27,7 +27,26 @@
 #ifndef _ASM_SMP_H
 #define _ASM_SMP_H
 
-#include <linux/cpumask.h>
-#include <asm/thread_info.h>
+#if defined(__OpenBSD__)
 
-#endif /* _ASM_SMP_H */
+#if defined(__i386__) || defined(__amd64__)
+#include <machine/cpu.h>	/* for wbinvd_on_all_cpus() */
+#endif
+
+#else
+
+#include <machine/cpufunc.h>
+
+// #include <linux/cpumask.h>
+// #include <asm/thread_info.h>
+
+static inline int
+wbinvd_on_all_cpus(void)
+{
+	cpu_wbinvd_on_all_cpus();
+	return 0;
+}
+
+#endif
+
+#endif
