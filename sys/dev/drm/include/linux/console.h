@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2017 François Tigeot
  * All rights reserved.
@@ -23,10 +25,26 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef	_LINUX_CONSOLE_H_
-#define	_LINUX_CONSOLE_H_
+#ifndef _LINUX_CONSOLE_H
+#define _LINUX_CONSOLE_H
 
 #include <linux/types.h>
+
+static inline void
+console_lock(void)
+{
+}
+
+static inline int
+console_trylock(void)
+{
+	return 1;
+}
+
+static inline void
+console_unlock(void)
+{
+}
 
 static inline bool
 vgacon_text_force(void)
@@ -34,4 +52,4 @@ vgacon_text_force(void)
 	return false;
 }
 
-#endif	/* _LINUX_CONSOLE_H_ */
+#endif

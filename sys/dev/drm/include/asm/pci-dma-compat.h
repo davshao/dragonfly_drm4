@@ -28,6 +28,8 @@
 #ifndef _ASM_PCI_DMA_COMPAT_H_
 #define _ASM_PCI_DMA_COMPAT_H_
 
+struct page;
+
 #include <vm/vm_page.h>
 
 static inline dma_addr_t

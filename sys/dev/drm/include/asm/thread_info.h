@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -27,11 +29,11 @@
 #ifndef _ASM_THREAD_INFO_H
 #define _ASM_THREAD_INFO_H
 
-#include <linux/compiler.h>
-#include <asm/page.h>
-#include <asm/types.h>
+// #include <linux/compiler.h>
+// #include <asm/page.h>
+// #include <asm/types.h>
 
 #include <asm/cpufeature.h>
-#include <linux/atomic.h>
+// #include <linux/atomic.h>
 
-#endif /* _ASM_THREAD_INFO_H */
+#endif

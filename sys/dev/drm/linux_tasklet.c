@@ -42,7 +42,7 @@
  */
 
 struct tasklet_entry {
-	struct tasklet_struct *ts;
+	struct tasklet_struct *tsp;
 	STAILQ_ENTRY(tasklet_entry) tasklet_entries;
 };
 
@@ -66,35 +66,37 @@ static int tasklet_pending = 0;
  */
 #define PROCESS_TASKLET_LIST(which_list) do { \
 	STAILQ_FOREACH_MUTABLE(te, &which_list, tasklet_entries, tmp_te) { \
-		struct tasklet_struct *t = te->ts;			\
+		struct tasklet_struct *ts = te->tsp;			\
 									\
 		/*							\
 		   This tasklet is dying, remove it from the list.	\
 		   We allow to it to run one last time if it has	\
 		   already been scheduled.				\
 		*/							\
-		if (test_bit(TASKLET_IS_DYING, &t->state)) {		\
+		if (test_bit(TASKLET_IS_DYING, &ts->state)) {		\
 			STAILQ_REMOVE(&which_list, te, tasklet_entry, tasklet_entries); \
 			kfree(te);					\
 		}							\
 									\
 		/* This tasklet is not enabled, try the next one */	\
-		if (atomic_read(&t->count) != 0)			\
+		if (atomic_read(&ts->count) != 0)			\
 			continue;					\
 									\
 		/* This tasklet is not scheduled, try the next one */	\
-		if (!test_bit(TASKLET_STATE_SCHED, &t->state))		\
+		if (!test_bit(TASKLET_STATE_SCHED, &ts->state))		\
 			continue;					\
 									\
-		clear_bit(TASKLET_STATE_SCHED, &t->state);		\
-		set_bit(TASKLET_STATE_RUN, &t->state);			\
+		clear_bit(TASKLET_STATE_SCHED, &ts->state);		\
+		set_bit(TASKLET_STATE_RUN, &ts->state);			\
 									\
 		lockmgr(&tasklet_lock, LK_RELEASE);			\
-		if (t->func)						\
-			t->func(t->data);				\
+		if (ts->func)						\
+			ts->func(ts->data);				\
+		if (ts->callback)					\
+			ts->callback(ts);				\
 		lockmgr(&tasklet_lock, LK_EXCLUSIVE);			\
 									\
-		clear_bit(TASKLET_STATE_RUN, &t->state);		\
+		clear_bit(TASKLET_STATE_RUN, &ts->state);		\
 	}								\
 } while (0)
 
@@ -123,28 +125,48 @@ tasklet_runner(void *arg)
 }
 
 void
-tasklet_init(struct tasklet_struct *t,
-	     void (*func)(unsigned long), unsigned long data)
+tasklet_init(struct tasklet_struct *ts, void (*func)(unsigned long),
+    unsigned long data)
 {
-	t->state = 0;
-	t->func = func;
-	t->data = data;
-	atomic_set(&t->count, 0);
+	ts->func = func;
+	ts->callback = 0;
+	ts->data = data;
+	ts->state = 0;
+	atomic_set(&ts->count, 0);
+#if defined(__OpenBSD__) /* linux/interrupt.h */
+	ts->use_callback = false;
+	task_set(&ts->task, tasklet_run, ts);
+#endif
 }
 
-#define TASKLET_SCHEDULE_COMMON(t, list) do {			\
+void
+tasklet_setup(struct tasklet_struct *ts,
+    void (*callback)(struct tasklet_struct *))
+{
+	ts->func = 0;
+	ts->callback = callback;
+	ts->data = 0;
+	ts->state = 0;
+	atomic_set(&ts->count, 0);
+#if defined(__OpenBSD__) /* linux/interrupt.h */
+	ts->use_callback = true;
+	task_set(&ts->task, tasklet_run, ts);
+#endif
+}
+
+#define TASKLET_SCHEDULE_COMMON(ts, list) do {			\
 	struct tasklet_entry *te;				\
 								\
 	lockmgr(&tasklet_lock, LK_EXCLUSIVE);			\
-	set_bit(TASKLET_STATE_SCHED, &t->state);		\
+	set_bit(TASKLET_STATE_SCHED, &ts->state);		\
 								\
 	STAILQ_FOREACH(te, &(list), tasklet_entries) {		\
-		if (te->ts == t)				\
+		if (te->tsp == ts)				\
 			goto found_and_done;			\
 	}							\
 								\
 	te = kzalloc(sizeof(struct tasklet_entry), M_WAITOK);	\
-	te->ts = t;						\
+	te->tsp = ts;						\
 	STAILQ_INSERT_TAIL(&(list), te, tasklet_entries);	\
 								\
 found_and_done:							\
@@ -154,22 +176,38 @@ found_and_done:							\
 } while (0)
 
 void
-tasklet_schedule(struct tasklet_struct *t)
+tasklet_schedule(struct tasklet_struct *ts)
 {
-	TASKLET_SCHEDULE_COMMON(t, tlist);
+#if defined(__OpenBSD__)
+	set_bit(TASKLET_STATE_SCHED, &ts->state);
+	task_add(taskletq, &ts->task);
+#else
+	TASKLET_SCHEDULE_COMMON(ts, tlist);
+#endif
 }
 
 void
-tasklet_hi_schedule(struct tasklet_struct *t)
+tasklet_hi_schedule(struct tasklet_struct *ts)
 {
-	TASKLET_SCHEDULE_COMMON(t, tlist_hi);
+#if defined(__OpenBSD__)
+	set_bit(TASKLET_STATE_SCHED, &ts->state);
+	task_add(taskletq, &ts->task);
+#else
+	TASKLET_SCHEDULE_COMMON(ts, tlist_hi);
+#endif
 }
 
 void
-tasklet_kill(struct tasklet_struct *t)
+tasklet_kill(struct tasklet_struct *ts)
 {
-	set_bit(TASKLET_IS_DYING, &t->state);
+#if defined(__OpenBSD__)
+	clear_bit(TASKLET_STATE_SCHED, &ts->state);
+	task_del(taskletq, &ts->task);
+	tasklet_unlock_wait(ts);
+#else
+	set_bit(TASKLET_IS_DYING, &ts->state);
 	wakeup(&tasklet_runner);
+#endif
 }
 
 static int init_tasklets(void *arg)
