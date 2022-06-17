@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
@@ -28,31 +30,131 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef	_LINUX_STRING_H_
-#define	_LINUX_STRING_H_
+#ifndef _LINUX_STRING_H
+#define _LINUX_STRING_H
+
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/malloc.h>
+#include <sys/stdint.h>
+#include <sys/errno.h>
+
+#include <linux/types.h>
+
+#if 0
 
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include <linux/stddef.h>
 #include <sys/stdarg.h>
 
+#endif
+
 #define __UNCONST(a)	((void *)(unsigned long)(const void *)(a))
 
+#if defined(__OpenBSD__) || defined(__DragonFly__)
 static inline void *
-memchr_inv(const void *buffer, int c, size_t len)
+memchr_inv(const void *s, int c, size_t n)
+{
+	if (n != 0) {
+		const unsigned char *p = s;
+
+		do {
+			if (*p++ != (unsigned char)c)
+				return __UNCONST(p - 1);
+		} while (--n != 0);
+	}
+	return (NULL);
+}
+#else /* previous DragonFly */
+static inline void *
+memchr_inv(const void *s, int c, size_t n)
 {
 	const uint8_t byte = c;	/* XXX lose */
 	const char *p;
 
-	for (p = buffer; len-- > 0; p++)
+	for (p = s; n-- > 0; p++)
 		if (*p != byte)
 			return __UNCONST(p);
 
 	return NULL;
 }
+#endif
+
+static inline void *
+memset32(uint32_t *b, uint32_t c, size_t len)
+{
+	uint32_t *dst = b;
+	while (len--)
+		*dst++ = c;
+	return b;
+}
+
+static inline void *
+memset64(uint64_t *b, uint64_t c, size_t len)
+{
+	uint64_t *dst = b;
+#if defined(__OpenBSD__) || defined(__DragonFly__)
+	while (len--)
+		*dst++ = c;
+#else /* previous DragonFly */
+	__asm __volatile("rep stosq"
+		: "+D" (dst), "+c" (len)	/* output operands (modified input) */
+		: "a" (c)		/* unmodified input operands */
+		: "memory");		/* clobbers */
+#endif
+	return b;
+}
+
+static inline void *
+memset_p(void **p, void *v, size_t n)
+{
+#if defined(__LP64__) || defined(__DragonFly__) 
+	return memset64((uint64_t *)p, (uintptr_t)v, n);
+#else
+	return memset32((uint32_t *)p, (uintptr_t)v, n);
+#endif
+}
 
 void *kmemdup(const void *src, size_t len, gfp_t gfp);
 
-#include <asm/string_64.h>	/* for memset64() */
+#if defined(__OpenBSD__)
+static inline void *
+kstrdup(const char *str, int flags)
+{
+	size_t len;
+	char *p;
 
-#endif	/* _LINUX_STRING_H_ */
+	if (str == NULL)
+		return NULL;
+
+	len = strlen(str) + 1;
+	p = kmalloc(len, M_DRM, flags);
+	if (p)
+		memcpy(p, str, len);
+	return (p);
+}
+#else
+/* DragonFly declared as kstrdup(str, type) in sys/malloc.h */
+#endif
+
+static inline int
+match_string(const char * const *array,  size_t n, const char *str)
+{
+	int i;
+
+	for (i = 0; i < n; i++) {
+		if (array[i] == NULL)
+			break;
+		if (!strcmp(array[i], str))	
+			return i;
+	}
+
+	return -EINVAL;
+}
+
+#if 0
+#include <asm/string_64.h>	/* for memset64() */
+#endif
+
+#endif

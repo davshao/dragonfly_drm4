@@ -1,3 +1,5 @@
+/* Public domain. */	
+
 /*
  * Copyright (c) 2015-2019 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,14 +26,70 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _ASM_CACHEFLUSH_H_
-#define _ASM_CACHEFLUSH_H_
+/* logic for clflush_cache_range from OpenBSD drm_cache.c */
+
+/**************************************************************************
+ *
+ * Copyright (c) 2006-2007 Tungsten Graphics, Inc., Cedar Park, TX., USA
+ * All Rights Reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sub license, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the
+ * next paragraph) shall be included in all copies or substantial portions
+ * of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+ * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+ * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+ * USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
+ **************************************************************************/
+/*
+ * Authors: Thomas Hellström <thomas-at-tungstengraphics-dot-com>
+ */
+
+#ifndef _ASM_CACHEFLUSH_H
+#define _ASM_CACHEFLUSH_H
+
+#if defined(__OpenBSD__)
+#include <machine/pmap.h>
+#else
+#include <machine/cpufunc.h>
+#endif
+// #include <vm/pmap.h>
+// #include <vm/vm_page.h>
 
 #include <asm/special_insns.h>
 
-#include <vm/pmap.h>
-#include <vm/vm_page.h>
+#if defined(__OpenBSD__)
+#define clflush_cache_range(va, len)	pmap_flush_cache((vaddr_t)(va), len)
+#else
+static inline void
+clflush_cache_range(void* va, unsigned int len)
+{
+	const int size = cpu_clflush_line_size;
+	void* end = va + len;
+	va = (void *)(((unsigned long)va) & ~size);
+	cpu_mfence();
+	for (; va < end; va+= size) {
+		clflush((unsigned long)va);
+	}
+	clflush((unsigned long)(end - 1)); /* force serialisation */
+	cpu_mfence();
+}
+#endif
 
+#if 0
 static inline int
 set_memory_uc(unsigned long addr, int numpages)
 {
@@ -50,8 +108,11 @@ static inline int set_memory_wb(unsigned long vaddr, int numpages)
 	pmap_change_attr(vaddr, numpages, PAT_WRITE_BACK);
 	return 0;
 }
+#endif
 
-static inline int set_pages_uc(struct page *page, int num_pages)
+#if 0
+static inline int
+set_pages_uc(struct page *page, int num_pages)
 {
 	struct vm_page *p = (struct vm_page *)page;
 
@@ -60,8 +121,11 @@ static inline int set_pages_uc(struct page *page, int num_pages)
 
 	return 0;
 }
+#endif
 
-static inline int set_pages_wb(struct page *page, int num_pages)
+#if 0
+static inline int
+set_pages_wb(struct page *page, int num_pages)
 {
 	struct vm_page *p = (struct vm_page *)page;
 
@@ -70,7 +134,9 @@ static inline int set_pages_wb(struct page *page, int num_pages)
 
 	return 0;
 }
+#endif
 
+#if 0
 static inline int
 set_pages_array_uc(struct page **pages, int addrinarray)
 {
@@ -79,7 +145,9 @@ set_pages_array_uc(struct page **pages, int addrinarray)
 
 	return 0;
 }
+#endif
 
+#if 0
 static inline int
 set_pages_array_wb(struct page **pages, int addrinarray)
 {
@@ -88,7 +156,9 @@ set_pages_array_wb(struct page **pages, int addrinarray)
 
 	return 0;
 }
+#endif
 
+#if 0
 static inline int
 set_pages_array_wc(struct page **pages, int addrinarray)
 {
@@ -97,5 +167,6 @@ set_pages_array_wc(struct page **pages, int addrinarray)
 
 	return 0;
 }
+#endif
 
-#endif	/* _ASM_CACHEFLUSH_H_ */
+#endif

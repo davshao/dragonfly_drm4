@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2019-2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,15 +26,15 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_IRQDOMAIN_H_
-#define _LINUX_IRQDOMAIN_H_
+#ifndef _LINUX_IRQDOMAIN_H
+#define _LINUX_IRQDOMAIN_H
 
-#include <linux/types.h>
-#include <linux/irqhandler.h>
-#include <linux/of.h>
+// #include <linux/types.h>
+// #include <linux/irqhandler.h>
+// #include <linux/of.h>
 #include <linux/radix-tree.h>
 
 struct device_node;
 
-#endif	/* _LINUX_IRQDOMAIN_H_ */
+#endif
 

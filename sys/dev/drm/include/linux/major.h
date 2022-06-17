@@ -27,8 +27,10 @@
 #ifndef _LINUX_MAJOR_H_
 #define _LINUX_MAJOR_H_
 
+#if 0
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include <linux/posix_types.h>
+#endif
 
 #endif	/* _LINUX_MAJOR_H_ */

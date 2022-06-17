@@ -116,6 +116,7 @@ static inline u64 ptr_to_u64(const void *ptr)
 })
 
 #include <linux/list.h>
+#include <linux/overflow.h>
 
 static inline void __list_del_many(struct list_head *head,
 				   struct list_head *first)

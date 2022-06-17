@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2019-2020 Jonathan Gray <jsg@openbsd.org>
  * Copyright (c) 2020 François Tigeot <ftigeot@wolfpond.org>
@@ -22,11 +24,16 @@
  * SOFTWARE.
  */
 
-#ifndef _LINUX_LLIST_H_
-#define _LINUX_LLIST_H_
+#ifndef _LINUX_LLIST_H
+#define _LINUX_LLIST_H
 
-#include <linux/atomic.h>
-#include <linux/kernel.h>
+#if defined(__OpenBSD__)
+#include <sys/atomic.h>
+#else
+#include <machine/atomic.h>
+#endif
+// #include <linux/atomic.h>
+// #include <linux/kernel.h>
 
 struct llist_node {
 	struct llist_node *next;
@@ -42,7 +49,11 @@ struct llist_head {
 static inline struct llist_node *
 llist_del_all(struct llist_head *head)
 {
+#if defined(__OpenBSD__)
+	return atomic_swap_ptr(&head->first, NULL);
+#else
 	return atomic_swap_ptr((void *)&head->first, NULL);
+#endif
 }
 
 static inline struct llist_node *
@@ -63,11 +74,34 @@ llist_del_first(struct llist_head *head)
 static inline bool
 llist_add(struct llist_node *new, struct llist_head *head)
 {
+#if defined(__OpenBSD__)
+	struct llist_node *first;
+
+	do {
+		new->next = first = head->first;
+	} while (atomic_cas_ptr(&head->first, first, new) != first);
+
+	return (first == NULL);
+#else /* previous DragonFly */
 	struct llist_node *first = READ_ONCE(head->first);
 
 	do {
 		new->next = first;
 	} while (cmpxchg(&head->first, first, new) != first);
+#endif
+
+	return (first == NULL);
+}
+
+static inline bool
+llist_add_batch(struct llist_node *new_first, struct llist_node *new_last,
+    struct llist_head *head)
+{
+	struct llist_node *first;
+
+	do {
+		new_last->next = first = head->first;
+	} while (atomic_cas_ptr(&head->first, first, new_first) != first);
 
 	return (first == NULL);
 }
@@ -84,15 +118,36 @@ llist_empty(struct llist_head *head)
 	return (head->first == NULL);
 }
 
+#define llist_for_each_safe(pos, n, node)				\
+	for ((pos) = (node);						\
+	    (pos) != NULL &&						\
+	    ((n) = (pos)->next, pos);					\
+	    (pos) = (n))
+
+#if defined(__OpenBSD__)
+#define llist_for_each_entry_safe(pos, n, node, member) 		\
+	for (pos = llist_entry((node), __typeof(*pos), member); 	\
+	    ((char *)(pos) + offsetof(typeof(*(pos)), member)) != NULL && \
+	    (n = llist_entry(pos->member.next, __typeof(*pos), member), pos); \
+	    pos = n)
+#else /* previous DragonFly */
 #define llist_for_each_entry_safe(pos, n, node, member) 		\
 	for (pos = llist_entry((node), __typeof(*pos), member); 	\
 	    pos != NULL &&						\
 	    (n = llist_entry(pos->member.next, __typeof(*pos), member), pos); \
 	    pos = n)
+#endif
 
+#if defined(__OpenBSD__)
+#define llist_for_each_entry(pos, node, member)				\
+	for ((pos) = llist_entry((node), __typeof(*(pos)), member);	\
+	    ((char *)(pos) + offsetof(typeof(*(pos)), member)) != NULL;	\
+	    (pos) = llist_entry((pos)->member.next, __typeof(*(pos)), member))
+#else /* previous DragonFly */
 #define llist_for_each_entry(pos, node, member)				\
 	for ((pos) = llist_entry((node), __typeof(*(pos)), member);	\
 	    (pos) != NULL;						\
 	    (pos) = llist_entry((pos)->member.next, __typeof(*(pos)), member))
+#endif
 
-#endif	/* _LINUX_LLIST_H_ */
+#endif

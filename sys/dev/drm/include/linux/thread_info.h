@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,13 +26,16 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_THREAD_INFO_H_
-#define _LINUX_THREAD_INFO_H_
+#ifndef _LINUX_THREAD_INFO_H
+#define _LINUX_THREAD_INFO_H
 
+#if 0
 #include <linux/types.h>
 #include <linux/bug.h>
 
 #include <linux/bitops.h>
+#endif
+
 #include <asm/thread_info.h>
 
-#endif	/* _LINUX_THREAD_INFO_H_ */
+#endif

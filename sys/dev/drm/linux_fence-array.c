@@ -24,6 +24,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#if 0
+
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/dma-fence-array.h>
@@ -192,3 +194,5 @@ struct dma_fence_array *dma_fence_array_create(int num_fences,
 	return array;
 }
 EXPORT_SYMBOL(dma_fence_array_create);
+
+#endif

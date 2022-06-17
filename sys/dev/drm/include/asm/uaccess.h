@@ -29,6 +29,7 @@
 #ifndef _ASM_UACCESS_H_
 #define _ASM_UACCESS_H_
 
+#if 0
 #define	get_user(_x, _p)	-copyin((_p), &(_x), sizeof(*(_p)))
 
 static inline long
@@ -108,5 +109,6 @@ __copy_from_user_inatomic_nocache(void *to, const void __user *from,
 
 #define user_access_begin()
 #define user_access_end()
+#endif
 
 #endif	/* _ASM_UACCESS_H_ */

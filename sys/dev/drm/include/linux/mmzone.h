@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2018-2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,9 +26,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_MMZONE_H_
-#define _LINUX_MMZONE_H_
+#ifndef _LINUX_MMZONE_H
+#define _LINUX_MMZONE_H
 
+#if 0
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include <linux/wait.h>
@@ -39,7 +42,10 @@
 #include <asm/page.h>
 
 struct page;
+#endif
+
+#include <linux/mm_types.h>
 
 #define MAX_ORDER	11
 
-#endif	/* _LINUX_MMZONE_H_ */
+#endif

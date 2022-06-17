@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,12 +26,12 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_PREFETCH_H_
-#define _LINUX_PREFETCH_H_
+#ifndef _LINUX_PREFETCH_H
+#define _LINUX_PREFETCH_H
 
-#include <linux/types.h>
-#include <asm/processor.h>
+// #include <linux/types.h>
+// #include <asm/processor.h>
 
 #define prefetchw(x)	__builtin_prefetch(x,1)
 
-#endif	/* _LINUX_PREFETCH_H_ */
+#endif

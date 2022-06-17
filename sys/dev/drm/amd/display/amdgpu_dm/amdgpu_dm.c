@@ -61,7 +61,7 @@
 #include <drm/drm_edid.h>
 
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-#include "ivsrcid/irqsrcs_dcn_1_0.h"
+#include "ivsrcid/dcn/irqsrcs_dcn_1_0.h"
 
 #include "dcn/dcn_1_0_offset.h"
 #include "dcn/dcn_1_0_sh_mask.h"
@@ -4124,7 +4124,7 @@ static void amdgpu_dm_do_flip(struct drm_crtc *crtc,
 	}
 
 	/* Wait for all fences on this FB */
-	WARN_ON(reservation_object_wait_timeout_rcu(abo->tbo.resv, true, false,
+	WARN_ON(dma_resv_wait_timeout(abo->tbo.resv, true, false,
 								    MAX_SCHEDULE_TIMEOUT) < 0);
 
 	amdgpu_bo_unreserve(abo);

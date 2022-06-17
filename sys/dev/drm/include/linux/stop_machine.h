@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2018-2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,29 +26,45 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_STOP_MACHINE_H_
-#define _LINUX_STOP_MACHINE_H_
+#ifndef _LINUX_STOP_MACHINE_H
+#define _LINUX_STOP_MACHINE_H
 
+#if 0
 #include <linux/cpumask.h>
 #include <linux/smp.h>
 #include <linux/list.h>
 
 #include <sys/mplock2.h>
+#endif
+
+#if defined(__OpenBSD__)
+#include <machine/intr.h>
+#else
+#include <sys/types.h>
+#include <machine/cpufunc.h>
+#endif
 
 typedef int (*cpu_stop_fn_t)(void *arg);
 
 static inline int
-stop_machine(cpu_stop_fn_t fn, void *data, const struct cpumask *cpus)
+stop_machine(cpu_stop_fn_t fn, void *arg, void *cpus)
 {
-	int res;
 
+#if 0
 	/* XXX: is this enough ?
 	 * See Linux commit 5bab6f60cb4d1417ad7c599166bcfec87529c1a2 */
+       int r;
        get_mplock();
-       res = (*fn)(data);
+       r = (*fn)(arg);
        rel_mplock();
-
-       return res;
+       return r;
+#else
+	int r;
+	u_long s = intr_disable();
+	r = (*fn)(arg);
+	intr_restore(s);
+	return r;
+#endif
 }
 
-#endif	/* _LINUX_STOP_MACHINE_H_ */
+#endif

@@ -28,6 +28,8 @@
 #define _LINUX_OOM_H_
 
 #include <linux/sched.h>
+#if 0
 #include <linux/types.h>
+#endif
 
 #endif	/* _LINUX_OOM_H_ */
