@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2015-2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,16 +26,27 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_ASYNC_H_
-#define _LINUX_ASYNC_H_
+#ifndef _LINUX_ASYNC_H
+#define _LINUX_ASYNC_H
 
 #include <linux/types.h>
 #include <linux/list.h>
 
-typedef u64 async_cookie_t;
-typedef void (*async_func_t) (void *data, async_cookie_t cookie);
+typedef uint64_t async_cookie_t;
+typedef void (*async_func_t) (void *, async_cookie_t);
 
-extern async_cookie_t async_schedule(async_func_t func, void *data);
+#if defined(__OpenBSD__)
+static inline async_cookie_t
+async_schedule(async_func_t func, void *data)
+{
+	func(data, 0);
+	return 0;
+}
+#else
+/* DragonFly uses a static lock to synchronize */
+extern async_cookie_t
+async_schedule(async_func_t func, void *data);
+#endif
 
 static inline void async_synchronize_full(void) {
 	/*
@@ -59,4 +72,4 @@ current_is_async(void)
 	return false;
 }
 
-#endif	/* _LINUX_ASYNC_H_ */
+#endif

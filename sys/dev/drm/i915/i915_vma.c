@@ -55,10 +55,10 @@ i915_vma_retire(struct i915_gem_active *active,
 		return;
 
 	/* Prune the shared fence arrays iff completely idle (inc. external) */
-	if (reservation_object_trylock(obj->resv)) {
-		if (reservation_object_test_signaled_rcu(obj->resv, true))
-			reservation_object_add_excl_fence(obj->resv, NULL);
-		reservation_object_unlock(obj->resv);
+	if (dma_resv_trylock(obj->resv)) {
+		if (dma_resv_test_signaled(obj->resv, true))
+			dma_resv_add_excl_fence(obj->resv, NULL);
+		dma_resv_unlock(obj->resv);
 	}
 
 	/* Bump our place on the bound list to keep it roughly in LRU order

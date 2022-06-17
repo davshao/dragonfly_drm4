@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2017-2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,19 +26,19 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_POLL_H_
-#define _LINUX_POLL_H_
+#ifndef _LINUX_POLL_H
+#define _LINUX_POLL_H
 
-#include <linux/compiler.h>
+// #include <linux/compiler.h>
 #include <linux/ktime.h>
-#include <linux/wait.h>
-#include <linux/string.h>
-#include <linux/fs.h>
-#include <asm/uaccess.h>
+// #include <linux/wait.h>
+// #include <linux/string.h>
+// #include <linux/fs.h>
+#include <linux/uaccess.h>
 
 struct poll_table_struct {
 };
 
 typedef struct poll_table_struct poll_table;
 
-#endif	/* _LINUX_POLL_H_ */
+#endif

@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2018 François Tigeot <ftigeot@wolfpond.org>
  * Copyright (c) 2019 Jonathan Gray <jsg@openbsd.org>
@@ -25,17 +27,42 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_RATELIMIT_H_
-#define _LINUX_RATELIMIT_H_
+#ifndef _LINUX_RATELIMIT_H
+#define _LINUX_RATELIMIT_H
 
-#include <linux/spinlock.h>
-
-#define DEFINE_RATELIMIT_STATE(name, interval_init, burst_init)		\
-	int name __used = 1;
-
-#define __ratelimit(x)	(1)
+// #include <linux/spinlock.h>
 
 struct ratelimit_state {
 };
 
-#endif	/* _LINUX_RATELIMIT_H_ */
+#if defined(__OpenBSD__) 
+#define DEFINE_RATELIMIT_STATE(name, interval, burst) \
+	struct ratelimit_state name
+#else
+#define DEFINE_RATELIMIT_STATE(name, interval_init, burst_init)		\
+	int name __used = 1;
+#endif
+
+#define RATELIMIT_MSG_ON_RELEASE	(1 << 0)
+
+#if defined(__OpenBSD__) 
+static inline int
+__ratelimit(struct ratelimit_state *rs)
+{
+	return 1;
+}
+#else
+#define __ratelimit(x)	(1)
+#endif
+
+static inline void
+ratelimit_state_init(struct ratelimit_state *rs, int interval, int burst)
+{
+}
+
+static inline void
+ratelimit_set_flags(struct ratelimit_state *rs, unsigned long flags)
+{
+}
+
+#endif

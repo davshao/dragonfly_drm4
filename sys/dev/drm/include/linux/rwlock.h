@@ -27,7 +27,9 @@
 #ifndef _LINUX_RWLOCK_H_
 #define _LINUX_RWLOCK_H_
 
+#if 0
 #define write_lock(lock)	lockmgr((lock), LK_EXCLUSIVE)
 #define write_unlock(lock)	lockmgr((lock), LK_RELEASE)
+#endif
 
 #endif	/* _LINUX_RWLOCK_H_ */

@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2019 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -27,7 +29,16 @@
 #ifndef _ASM_DIV64_H
 #define _ASM_DIV64_H
 
-#include <linux/types.h>
-#include <linux/compiler.h>
+#include <sys/types.h>
 
-#endif /* _ASM_DIV64_H */
+// #include <linux/types.h>
+// #include <linux/compiler.h>
+
+#define do_div(n, base) ({				\
+	uint32_t __base = (base);			\
+	uint32_t __rem = ((uint64_t)(n)) % __base;	\
+	(n) = ((uint64_t)(n)) / __base;			\
+	__rem;						\
+})
+
+#endif

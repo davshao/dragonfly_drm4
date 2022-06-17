@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2015-2019 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,8 +26,27 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef LINUX_KCONFIG_H
-#define LINUX_KCONFIG_H
+#ifndef _LINUX_KCONFIG_H
+#define _LINUX_KCONFIG_H
+
+#include <sys/endian.h>
+
+#include <generated/autoconf.h>
+
+#if defined(__OpenBSD__)
+
+#define __NEWARG1			__newarg,
+#define __is_defined(x)			__is_defined2(x)
+#define __is_defined2(x)		__is_defined3(__NEWARG##x)
+#define __is_defined3(x)		__is_defined4(x 1, 0)
+#define __is_defined4(a, b, ...)	b
+
+#define IS_ENABLED(x)		__is_defined(x)
+#define IS_REACHABLE(x)		__is_defined(x)
+#define IS_BUILTIN(x)		__is_defined(x)
+#define IS_MODULE(x)		0
+
+#else
 
 #define __kconfig_value1	1,
 
@@ -40,4 +61,29 @@
 
 #define config_enabled(x)		IS_ENABLED(x)
 
-#endif /* LINUX_KCONFIG_H */
+#define IS_REACHABLE(x)		IS_ENABLED(x)
+#define IS_BUILTIN(x)		IS_ENABLED(x)
+#define IS_MODULE(x)		0
+
+#endif
+
+#if defined(__OpenBSD__)
+
+#if BYTE_ORDER == BIG_ENDIAN
+#define __BIG_ENDIAN
+#else
+#define __LITTLE_ENDIAN
+#endif
+
+#else
+
+/* Byteorder compat layer */
+#if _BYTE_ORDER == _BIG_ENDIAN
+#define	__BIG_ENDIAN 4321
+#else
+#define	__LITTLE_ENDIAN 1234
+#endif
+
+#endif
+
+#endif

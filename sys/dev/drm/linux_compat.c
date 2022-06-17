@@ -58,7 +58,8 @@ kmemdup(const void *src, size_t len, gfp_t gfp)
 struct fb_info *
 framebuffer_alloc(size_t size, struct device *dev)
 {
-	return kzalloc(sizeof(struct fb_info), GFP_KERNEL);
+/* Not sure.  OpenBSD has + size */
+	return kzalloc(sizeof(struct fb_info) + size, GFP_KERNEL);
 }
 
 void
@@ -102,4 +103,18 @@ si_meminfo(struct sysinfo *si)
         si->totalram = physmem;
         si->totalhigh = 0;
         si->mem_unit = PAGE_SIZE;
+}
+
+#include <linux/bitmap.h>
+
+void *
+bitmap_zalloc(u_int n, gfp_t flags)
+{
+	return kcalloc(BITS_TO_LONGS(n), sizeof(long), flags);
+}
+
+void
+bitmap_free(void *p)
+{
+	kfree(p);
 }

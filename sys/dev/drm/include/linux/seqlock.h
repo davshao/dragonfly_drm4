@@ -24,14 +24,18 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_SEQLOCK_H_
-#define _LINUX_SEQLOCK_H_
+#ifndef _LINUX_SEQLOCK_H
+#define _LINUX_SEQLOCK_H
 
-#include <linux/spinlock.h>
-#include <linux/preempt.h>
+#include <sys/types.h>
+#include <sys/lock.h>
+#include <linux/atomic.h>
 #include <linux/lockdep.h>
+#include <linux/processor.h>
+#include <linux/preempt.h>
 #include <linux/compiler.h>
-#include <asm/processor.h>
+#include <linux/ww_mutex.h>
+// #include <asm/processor.h>
 
 /*
  * Seqlock definition from Wikipedia
@@ -49,91 +53,44 @@
  *
  */
 
-typedef struct {
-	unsigned sequence;
-	struct lock lock;
-} seqlock_t;
-
-static inline void
-seqlock_init(seqlock_t *sl)
-{
-	sl->sequence = 0;
-	lockinit(&sl->lock, "lsql", 0, 0);
-}
-
-/*
- * Writers always use a spinlock. We still use store barriers
- * in order to quickly update the state of the sequence variable
- * for readers.
- */
-static inline void
-write_seqlock(seqlock_t *sl)
-{
-	lockmgr(&sl->lock, LK_EXCLUSIVE);
-	sl->sequence++;
-	cpu_sfence();
-}
-
-static inline void
-write_sequnlock(seqlock_t *sl)
-{
-	sl->sequence--;
-	lockmgr(&sl->lock, LK_RELEASE);
-	cpu_sfence();
-}
-
-/*
- * Read functions are fully unlocked.
- * We use load barriers to obtain a reasonably up-to-date state
- * for the sequence number.
- */
-static inline unsigned
-read_seqbegin(const seqlock_t *sl)
-{
-	return READ_ONCE(sl->sequence);
-}
-
-static inline unsigned
-read_seqretry(const seqlock_t *sl, unsigned start)
-{
-	cpu_lfence();
-	return (sl->sequence != start);
-}
-
 typedef struct seqcount {
-	unsigned sequence;
+	unsigned int sequence;
 } seqcount_t;
 
+
 static inline void
-__seqcount_init(seqcount_t *s, const char *name, struct lock_class_key *key)
+__seqcount_init(seqcount_t *s, const char *name,
+    struct lock_class_key *key)
 {
 	s->sequence = 0;
+}
+
+static inline void
+seqcount_init(seqcount_t *s)
+{
+	__seqcount_init(s, NULL, NULL);
 }
 
 static inline unsigned int
 __read_seqcount_begin(const seqcount_t *s)
 {
-	unsigned int ret;
-
+	unsigned int r;
 	do {
-		ret = READ_ONCE(s->sequence);
+		r = READ_ONCE(s->sequence);
 		/* If the sequence number is odd, a writer has taken the lock */
-		if ((ret & 1) == 0)
+		if ((r & 1) == 0)
 			break;
 		cpu_pause();
 	} while (1);
-
-	return ret;
+	return r;
 }
 
 static inline unsigned int
 read_seqcount_begin(const seqcount_t *s)
 {
-	unsigned int ret = __read_seqcount_begin(s);
-
+	unsigned int r = __read_seqcount_begin(s);
 	cpu_lfence();
-
-	return ret;
+	return r;
 }
 
 static inline int
@@ -149,13 +106,15 @@ read_seqcount_retry(const seqcount_t *s, unsigned start)
 	return __read_seqcount_retry(s, start);
 }
 
-static inline void write_seqcount_begin(seqcount_t *s)
+static inline void
+write_seqcount_begin(seqcount_t *s)
 {
 	s->sequence++;
 	cpu_ccfence();
 }
 
-static inline void write_seqcount_end(seqcount_t *s)
+static inline void
+write_seqcount_end(seqcount_t *s)
 {
 	cpu_ccfence();
 	s->sequence++;
@@ -164,11 +123,89 @@ static inline void write_seqcount_end(seqcount_t *s)
 static inline unsigned int
 raw_read_seqcount(const seqcount_t *s)
 {
-	unsigned int value = READ_ONCE(s->sequence);
-
+	unsigned int r = READ_ONCE(s->sequence);
 	cpu_ccfence();
-
-	return value;
+	return r;
 }
+
+typedef struct {
+	unsigned int seq;
+	struct lock lock;
+} seqlock_t;
+
+static inline void
+seqlock_init(seqlock_t *sl)
+{
+	sl->seq = 0;
+	lockinit(&sl->lock, "lsql", 0, 0);
+}
+
+/*
+ * Writers always use a spinlock. We still use store barriers
+ * in order to quickly update the state of the sequence variable
+ * for readers.
+ */
+static inline void
+write_seqlock(seqlock_t *sl)
+{
+	lockmgr(&sl->lock, LK_EXCLUSIVE);
+	sl->seq++;
+	cpu_sfence();
+}
+
+static inline void
+__write_seqlock_irqsave(seqlock_t *sl)
+{
+	lockmgr(&sl->lock, LK_EXCLUSIVE);
+	sl->seq++;
+	cpu_sfence();
+}
+#define write_seqlock_irqsave(_sl, _flags) do {			\
+		_flags = 0;					\
+		__write_seqlock_irqsave(_sl);			\
+	} while (0)
+
+static inline void
+write_sequnlock(seqlock_t *sl)
+{
+	sl->seq--;
+	lockmgr(&sl->lock, LK_RELEASE);
+	cpu_sfence();
+}
+
+static inline void
+__write_sequnlock_irqrestore(seqlock_t *sl)
+{
+	sl->seq--;
+	lockmgr(&sl->lock, LK_RELEASE);
+	cpu_sfence();
+}
+#define write_sequnlock_irqrestore(_sl, _flags) do {		\
+		(void)(_flags);					\
+		__write_sequnlock_irqrestore(_sl);		\
+	} while (0)
+
+/*
+ * Read functions are fully unlocked.
+ * We use load barriers to obtain a reasonably up-to-date state
+ * for the sequence number.
+ */
+static inline unsigned
+read_seqbegin(const seqlock_t *sl)
+{
+	return READ_ONCE(sl->seq);
+}
+
+static inline unsigned
+read_seqretry(const seqlock_t *sl, unsigned int pos)
+{
+	cpu_lfence();
+	return (sl->seq != pos);
+}
+
+typedef struct {
+	seqcount_t seq;
+	struct ww_mutex lock;
+} seqcount_ww_mutex_t;
 
 #endif	/* _LINUX_SEQLOCK_H_ */

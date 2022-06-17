@@ -37,7 +37,7 @@ struct drm_gem_object *radeon_gem_prime_import_sg_table(struct drm_device *dev,
 							struct sg_table *sg);
 int radeon_gem_prime_pin(struct drm_gem_object *obj);
 void radeon_gem_prime_unpin(struct drm_gem_object *obj);
-struct reservation_object *radeon_gem_prime_res_obj(struct drm_gem_object *obj);
+struct dma_resv *radeon_gem_prime_res_obj(struct drm_gem_object *obj);
 struct dma_buf *radeon_gem_prime_export(struct drm_device *dev,
 					struct drm_gem_object *gobj,
 					int flags);
@@ -74,7 +74,7 @@ struct drm_gem_object *radeon_gem_prime_import_sg_table(struct drm_device *dev,
 							struct dma_buf_attachment *attach,
 							struct sg_table *sg)
 {
-	struct reservation_object *resv = attach->dmabuf->resv;
+	struct dma_resv *resv = attach->dmabuf->resv;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_bo *bo;
 	int ret;
@@ -128,7 +128,7 @@ void radeon_gem_prime_unpin(struct drm_gem_object *obj)
 }
 
 
-struct reservation_object *radeon_gem_prime_res_obj(struct drm_gem_object *obj)
+struct dma_resv *radeon_gem_prime_res_obj(struct drm_gem_object *obj)
 {
 	struct radeon_bo *bo = gem_to_radeon_bo(obj);
 

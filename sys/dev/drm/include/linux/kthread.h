@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2017-2019 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,22 +26,36 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_KTHREAD_H_
-#define _LINUX_KTHREAD_H_
+#ifndef _LINUX_KTHREAD_H
+#define _LINUX_KTHREAD_H
 
 #include <linux/err.h>
 #include <linux/sched.h>
 
-struct task_struct *
-kthread_run(int (*fn)(void *lfnarg), void *data, const char *namefmt, ...);
+#if defined(__OpenBSD__)
+struct proc *kthread_run(int (*)(void *), void *, const char *);
+#else
+struct task_struct * kthread_run(int (*)(void *), void *, const char *, ...);
+#endif
 
-int kthread_stop(struct task_struct *k);
+#if defined(__OpenBSD__)
 
-bool kthread_should_stop(void);
+void 	kthread_park(struct proc *);
+void 	kthread_unpark(struct proc *);
+int	kthread_should_park(void);
+void 	kthread_parkme(void);
+void	kthread_stop(struct proc *);
+int	kthread_should_stop(void);
+
+#else
 
 int kthread_park(struct task_struct *k);
 void kthread_unpark(struct task_struct *k);
 bool kthread_should_park(void);
 void kthread_parkme(void);
+int kthread_stop(struct task_struct *k);
+bool kthread_should_stop(void);
 
-#endif	/* _LINUX_KTHREAD_H_ */
+#endif
+
+#endif

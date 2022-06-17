@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2018 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,8 +26,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_IRQRETURN_H_
-#define _LINUX_IRQRETURN_H_
+#ifndef _LINUX_IRQRETURN_H
+#define _LINUX_IRQRETURN_H
 
 enum irqreturn {
 	IRQ_NONE	= 0,
@@ -34,4 +36,4 @@ enum irqreturn {
 
 typedef enum irqreturn irqreturn_t;
 
-#endif	/* _LINUX_IRQRETURN_H_ */
+#endif

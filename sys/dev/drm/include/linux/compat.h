@@ -27,6 +27,6 @@
 #ifndef _LINUX_COMPAT_H_
 #define _LINUX_COMPAT_H_
 
-#include <linux/types.h>
+// #include <linux/types.h>
 
 #endif	/* _LINUX_COMPAT_H_ */

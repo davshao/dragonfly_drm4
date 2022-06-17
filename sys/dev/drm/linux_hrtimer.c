@@ -81,16 +81,49 @@ hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 	lwkt_reltoken(&timer->timer_token);
 }
 
+#if defined(__OpenBSD__)
+int
+hrtimer_cancel(struct timeout *timer)
+#else
 int
 hrtimer_cancel(struct hrtimer *timer)
+#endif
 {
+#if defined(__OpenBSD__)
+	return timeout_del_barrier(timer)
+#else
 	return callout_cancel(&timer->timer_callout) == 0;
+#endif
 }
 
+#if defined(__OpenBSD__)
+int
+hrtimer_try_to_cancel(struct timeout *timer)
+#else
+int
+hrtimer_try_to_cancel(struct hrtimer *timer)
+#endif
+{
+#if defined(__OpenBSD__)
+	return timeout_del(x)	/* XXX ret -1 if running */
+#else /* not sure */
+	return callout_cancel(&timer->timer_callout) == 0;
+#endif
+}
+
+#if defined(__OpenBSD__)
+bool
+hrtimer_active(struct timeout *const_timer)
+#else
 /* Returns non-zero if the timer is already on the queue */
 bool
 hrtimer_active(const struct hrtimer *const_timer)
+#endif
 {
+#if defined(__OpenBSD__)
+	return timeout_pending(const_timer);
+#else
 	struct hrtimer *timer = __DECONST(struct hrtimer *, const_timer);
 	return callout_pending(&timer->timer_callout);
+#endif
 }

@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,9 +26,14 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_POISON_H_
-#define _LINUX_POISON_H_
+#ifndef _LINUX_POISON_H
+#define _LINUX_POISON_H
 
+#if 0 /* previous DragonFly */
 #define POISON_INUSE	0x5
+#endif
 
-#endif	/* _LINUX_POISON_H_ */
+#define POISON_INUSE	0xdb
+#define POISON_FREE	0xdf
+
+#endif

@@ -27,6 +27,7 @@
 #ifndef _ASM_ATOMIC_H_
 #define _ASM_ATOMIC_H_
 
+#if 0
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include <asm/cmpxchg.h>
@@ -43,5 +44,6 @@
 #define ATOMIC_INIT(i)	{ (i) }
 
 #include <asm/atomic64_64.h>
+#endif
 
 #endif	/* _ASM_ATOMIC_H_ */

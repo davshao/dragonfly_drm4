@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,11 +26,72 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_SCHED_SIGNAL_H_
-#define _LINUX_SCHED_SIGNAL_H_
+#ifndef _LINUX_SCHED_SIGNAL_H
+#define _LINUX_SCHED_SIGNAL_H
 
-#include <linux/rculist.h>
-#include <linux/sched.h>
-#include <linux/sched/task.h>
+#include <sys/param.h>
+#include <sys/systm.h>
+#if defined(__OpenBSD__)
+#include <sys/signalvar.h>
+#else
+#include <sys/thread.h>
+#include <sys/signal2.h>
+#endif
 
-#endif	/* _LINUX_SCHED_SIGNAL_H_ */
+// #include <linux/rculist.h>
+#include <linux/sched.h> /* definition of struct task_struct */
+// #include <linux/sched/task.h>
+
+#if defined(__OpenBSD__)
+
+#define signal_pending_state(s, x) \
+    ((s) & TASK_INTERRUPTIBLE ? SIGPENDING(curproc) : 0)
+#define signal_pending(y) SIGPENDING(curproc)
+
+#else
+
+static inline int
+signal_pending(struct task_struct *p)
+{
+	struct thread *t = p->dfly_td;
+
+	/* Some kernel threads do not have lwp, t->td_lwp can be NULL */
+	if (t->td_lwp == NULL)
+		return 0;
+
+	return CURSIG(t->td_lwp);
+}
+
+static inline int
+fatal_signal_pending(struct task_struct *p)
+{
+	struct thread *t = p->dfly_td;
+	sigset_t pending_set;
+
+	/* Some kernel threads do not have lwp, t->td_lwp can be NULL */
+	if (t->td_lwp == NULL)
+		return 0;
+
+	pending_set = lwp_sigpend(t->td_lwp);
+	return SIGISMEMBER(pending_set, SIGKILL);
+}
+
+static inline int
+signal_pending_state(long state, struct task_struct *p)
+{
+	if (state & TASK_INTERRUPTIBLE)
+		return (signal_pending(p));
+	else
+		return (fatal_signal_pending(p));
+}
+
+#endif
+
+static inline int
+send_sig(int sig, struct proc *p, int priv)
+{
+	ksignal(p, sig);
+	return 0;
+}
+
+#endif

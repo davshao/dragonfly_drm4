@@ -20,6 +20,7 @@
  * OF THIS SOFTWARE.
  */
 
+#include <drm/drmP.h>
 #include <drm/drm_modeset_helper.h>
 #include <drm/drm_plane_helper.h>
 

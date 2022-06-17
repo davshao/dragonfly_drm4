@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2017-2018 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,14 +26,14 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_CPUFREQ_H_
-#define _LINUX_CPUFREQ_H_
+#ifndef _LINUX_CPUFREQ_H
+#define _LINUX_CPUFREQ_H
 
-#include <linux/cpumask.h>
-#include <linux/completion.h>
+// #include <linux/cpumask.h>
+// #include <linux/completion.h>
 #include <linux/kobject.h>
-#include <linux/sysfs.h>
-#include <linux/notifier.h>
-#include <linux/spinlock.h>
+// #include <linux/sysfs.h>
+// #include <linux/notifier.h>
+// #include <linux/spinlock.h>
 
-#endif	/* _LINUX_CPUFREQ_H_ */
+#endif

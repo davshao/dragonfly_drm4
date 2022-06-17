@@ -27,9 +27,11 @@
 #ifndef _LINUX_MMDEBUG_H_
 #define _LINUX_MMDEBUG_H_
 
+#if 0
 #include <linux/bug.h>
 #include <linux/stringify.h>
 
 struct page;
+#endif
 
 #endif	/* _LINUX_MMDEBUG_H_ */

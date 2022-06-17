@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2016-2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,30 +26,51 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _ASM_CPUFEATURE_H_
-#define _ASM_CPUFEATURE_H_
+#ifndef _ASM_CPUFEATURE_H
+#define _ASM_CPUFEATURE_H
 
-#include <asm/processor.h>
+#include <sys/systm.h>
+#include <machine/specialreg.h>
 
-#include <asm/cpufeatures.h>
+// #include <asm/processor.h>
+
+// #include <asm/cpufeatures.h>
+
+#if defined(__OpenBSD__)
+#define X86_FEATURE_CLFLUSH	1
+#define X86_FEATURE_XMM4_1	2
+#define X86_FEATURE_PAT		3
+#define X86_FEATURE_HYPERVISOR	4
+#else
+#define X86_FEATURE_CLFLUSH	( 0*32+19) /* CLFLUSH instruction */
+#define X86_FEATURE_XMM4_1	( 4*32+19) /* SSE 4.1, first appeared in 2007 */
+#define X86_FEATURE_PAT		( 0*32+16)
+#define X86_FEATURE_HYPERVISOR	( 4*32+31) /* Running on a hypervisor */
+#endif
 
 static inline bool
-static_cpu_has(uint16_t feature)
+static_cpu_has(uint16_t f)
 {
-	switch(feature) {
+	switch (f) {
 	case X86_FEATURE_CLFLUSH:
 		/* All amd64 CPUs have the clflush instruction */
 		return true;
-	case X86_FEATURE_HYPERVISOR:
-		return ((cpu_feature2 & CPUID2_VMM) != 0);
+	case X86_FEATURE_XMM4_1:
+#if defined(__OpenBSD__)
+		return (cpu_ecxfeature & CPUIDECX_SSE41) != 0;
+#else
+		return ((cpu_feature2 & CPUID2_SSE41) != 0);
+#endif
 	case X86_FEATURE_PAT:
 		/* All amd64 CPUs have PAT support */
 		return true;
+	case X86_FEATURE_HYPERVISOR:
+		return ((cpu_feature2 & CPUID2_VMM) != 0);
 	default:
 		return false;
 	}
 }
 
-#define boot_cpu_has(bit)	static_cpu_has(bit)
+#define boot_cpu_has(x)	static_cpu_has(x)
 
-#endif	/* _ASM_CPUFEATURE_H_ */
+#endif

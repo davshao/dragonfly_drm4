@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,8 +26,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_BOTTOM_HALF_H_
-#define _LINUX_BOTTOM_HALF_H_
+#ifndef _LINUX_BOTTOM_HALF_H
+#define _LINUX_BOTTOM_HALF_H
 
 #include <linux/preempt.h>
 
@@ -39,4 +41,4 @@ local_bh_enable(void)
 {
 }
 
-#endif	/* _LINUX_BOTTOM_HALF_H_ */
+#endif

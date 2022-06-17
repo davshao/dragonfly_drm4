@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,11 +26,33 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_SPINLOCK_TYPES_H_
-#define _LINUX_SPINLOCK_TYPES_H_
+#ifndef _LINUX_SPINLOCK_TYPES_H
+#define _LINUX_SPINLOCK_TYPES_H
 
+#if defined(__OpenBSD__)
+#include <sys/types.h>
+#include <sys/mutex.h>
+#else
+#include <sys/types.h>
+#include <sys/lock.h>
+#endif
+
+#if defined(__OpenBSD__)
+#include <linux/rwlock_types.h>
+#else
 #include <linux/lockdep.h>
+#endif
+
+#if defined(__OpenBSD__)
+
+typedef struct mutex spinlock_t;
+#define DEFINE_SPINLOCK(x)	struct mutex x = MUTEX_INITIALIZER(IPL_TTY)
+
+#else
 
 typedef struct lock spinlock_t;
+#define DEFINE_SPINLOCK(x)	struct lock x = LOCK_INITIALIZER("ds##x", 0, 0)
 
-#endif	/* _LINUX_SPINLOCK_TYPES_H_ */
+#endif
+
+#endif

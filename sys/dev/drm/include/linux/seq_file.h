@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2015 Michael Neumann
  * Copyright (c) 2020 François Tigeot <ftigeot@wolfpond.org>
@@ -25,22 +27,42 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_SEQ_FILE_H_
-#define _LINUX_SEQ_FILE_H_
+#ifndef _LINUX_SEQ_FILE_H
+#define _LINUX_SEQ_FILE_H
+
+// #include <sys/sbuf.h>
 
 #include <linux/types.h>
-#include <linux/string.h>
 #include <linux/bug.h>
-#include <linux/mutex.h>
-#include <linux/cpumask.h>
+#include <linux/string.h>
+// #include <linux/mutex.h>
+// #include <linux/cpumask.h>
 
 struct seq_file {
 	char	*buf;
 	size_t	size;
 };
 
-void seq_printf(struct seq_file *m, const char *f, ...);
+// void seq_printf(struct seq_file *m, const char *f, ...);
+
+#if defined(__OpenBSD__)
+static inline void
+seq_printf(struct seq_file *m, const char *fmt, ...) {};
+ 
+static inline void
+seq_puts(struct seq_file *m, const char *s) {};
+#else
+static inline void
+seq_printf(struct seq_file *m, const char *fmt, ...)
+{
+	__va_list ap;
+
+	__va_start(ap, fmt);
+	ksnprintf(m->buf, m->size, fmt, ap);
+	__va_end(ap);
+}
 
 #define seq_puts(m, str)	ksnprintf((m)->buf, (m)->size, str)
+#endif
 
-#endif	/* _LINUX_SEQ_FILE_H_ */
+#endif

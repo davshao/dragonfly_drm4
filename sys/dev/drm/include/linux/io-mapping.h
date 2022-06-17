@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2015-2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,16 +26,12 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_IOMAPPING_H_
-#define _LINUX_IOMAPPING_H_
+#ifndef _LINUX_IO_MAPPING_H
+#define _LINUX_IO_MAPPING_H
 
 #include <linux/types.h>
-#include <linux/slab.h>
-#include <linux/bug.h>
-#include <linux/io.h>
-#include <asm/page.h>
 
-#include <asm/iomap.h>
+#include <linux/bitmap.h>
 
 struct io_mapping {
 	resource_size_t base;
@@ -42,76 +40,32 @@ struct io_mapping {
 	void *vaddr;
 };
 
-static inline struct io_mapping *
-io_mapping_create_wc(resource_size_t base, unsigned long size)
-{
-	struct io_mapping *map;
+struct io_mapping *
+io_mapping_create_wc(resource_size_t base, unsigned long size);
 
-	map = kmalloc(sizeof(struct io_mapping), M_DRM, M_WAITOK);
-	map->base = base;
-	map->size = size;
-	map->prot = VM_MEMATTR_WRITE_COMBINING;
+void
+io_mapping_free(struct io_mapping *mapping);
 
-	map->vaddr = pmap_mapdev_attr(base, size,
-					VM_MEMATTR_WRITE_COMBINING);
-	if (map->vaddr == NULL)
-		return NULL;
-
-	return map;
-}
-
-static inline void io_mapping_free(struct io_mapping *mapping)
-{
-	/* Default memory attribute is write-back */
-	pmap_mapdev_attr(mapping->base, mapping->size, VM_MEMATTR_WRITE_BACK);
-	kfree(mapping);
-}
-
-static inline void *
+void *
 io_mapping_map_wc(struct io_mapping *mapping,
 		  unsigned long offset,
-		  unsigned long size)
-{
-	BUG_ON(offset >= mapping->size);
+		  unsigned long size);
 
-	return ioremap_wc(mapping->base + offset, size);
-}
+void *
+io_mapping_map_atomic_wc(struct io_mapping *mapping, unsigned long offset);
 
-static inline void *
-io_mapping_map_atomic_wc(struct io_mapping *mapping, unsigned long offset)
-{
-	return ioremap_wc(mapping->base + offset, PAGE_SIZE);
-}
+void
+io_mapping_unmap(void *vaddr);
 
-static inline void
-io_mapping_unmap(void *vaddr)
-{
-	iounmap(vaddr);
-}
+void
+io_mapping_unmap_atomic(void *vaddr);
 
-static inline void
-io_mapping_unmap_atomic(void *vaddr)
-{
-	iounmap(vaddr);
-}
-
-static inline struct io_mapping *
+struct io_mapping *
 io_mapping_init_wc(struct io_mapping *iomap,
 		   resource_size_t base,
-		   unsigned long size)
-{
-	iomap->base = base;
-	iomap->size = size;
-	iomap->vaddr = ioremap_wc(base, size);
-	iomap->prot = pgprot_writecombine(PAGE_KERNEL_IO);
+		   unsigned long size);
 
-	return iomap;
-}
+void
+io_mapping_fini(struct io_mapping *mapping);
 
-static inline void
-io_mapping_fini(struct io_mapping *mapping)
-{
-	iounmap(mapping->vaddr);
-}
-
-#endif	/* _LINUX_IOMAPPING_H_ */
+#endif

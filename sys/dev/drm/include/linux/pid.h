@@ -29,6 +29,8 @@
 
 #include <linux/rcupdate.h>
 
+struct task_struct;
+
 enum pid_type
 {
 	PIDTYPE_PID,

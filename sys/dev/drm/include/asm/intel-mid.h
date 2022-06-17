@@ -27,7 +27,9 @@
 #ifndef _ASM_INTEL_MID_H
 #define _ASM_INTEL_MID_H
 
+#if 0
 #include <linux/pci.h>
 #include <linux/platform_device.h>
+#endif
 
 #endif	/* _ASM_INTEL_MID_H */

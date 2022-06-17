@@ -24,6 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#if 0
 #include <linux/seq_file.h>
 
 #include <sys/sbuf.h>
@@ -37,3 +38,4 @@ seq_printf(struct seq_file *m, const char *f, ...)
 	ksnprintf(m->buf, m->size, f, ap);
 	__va_end(ap);
 }
+#endif

@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2018-2019 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,13 +26,13 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_POWER_SUPPLY_H_
-#define _LINUX_POWER_SUPPLY_H_
+#ifndef _LINUX_POWER_SUPPLY_H
+#define _LINUX_POWER_SUPPLY_H
 
-#include <linux/workqueue.h>
-#include <linux/leds.h>
-#include <linux/spinlock.h>
-#include <linux/notifier.h>
+// #include <linux/workqueue.h>
+// #include <linux/leds.h>
+// #include <linux/spinlock.h>
+// #include <linux/notifier.h>
 
 #include <sys/power.h>
 
@@ -42,4 +44,4 @@ power_supply_is_system_supplied(void)
 
 struct device_node;
 
-#endif	/* _LINUX_POWER_SUPPLY_H_ */
+#endif

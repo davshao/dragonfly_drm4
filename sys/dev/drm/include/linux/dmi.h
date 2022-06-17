@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2015-2019 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,36 +26,21 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_DMI_H_
-#define _LINUX_DMI_H_
+#ifndef _LINUX_DMI_H
+#define _LINUX_DMI_H
 
-#include <linux/list.h>
-#include <linux/kobject.h>
+#include <sys/types.h>
+// #include <linux/list.h>
+// #include <linux/kobject.h>
 #include <linux/mod_devicetable.h>
 
-enum dmi_field {
-        DMI_NONE,
-        DMI_BIOS_VENDOR,
-        DMI_BIOS_VERSION,
-        DMI_BIOS_DATE,
-        DMI_SYS_VENDOR,
-        DMI_PRODUCT_NAME,
-        DMI_PRODUCT_VERSION,
-        DMI_PRODUCT_SERIAL,
-        DMI_PRODUCT_UUID,
-        DMI_BOARD_VENDOR,
-        DMI_BOARD_NAME,
-        DMI_BOARD_VERSION,
-        DMI_BOARD_SERIAL,
-        DMI_BOARD_ASSET_TAG,
-        DMI_CHASSIS_VENDOR,
-        DMI_CHASSIS_TYPE,
-        DMI_CHASSIS_VERSION,
-        DMI_CHASSIS_SERIAL,
-        DMI_CHASSIS_ASSET_TAG,
-        DMI_STRING_MAX,
-};
+int dmi_check_system(const struct dmi_system_id *);
+#if defined(__OpenBSD__)
+bool dmi_match(int, const char *);
+#else
+bool dmi_match(enum dmi_field, const char *);
+#endif
+const struct dmi_system_id *dmi_first_match(const struct dmi_system_id *);
+const char *dmi_get_system_info(int);
 
-extern bool dmi_match(enum dmi_field f, const char *str);
-
-#endif	/* _LINUX_DMI_H_ */
+#endif

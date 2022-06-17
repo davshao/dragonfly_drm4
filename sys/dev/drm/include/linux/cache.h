@@ -27,9 +27,11 @@
 #ifndef _LINUX_CACHE_H_
 #define _LINUX_CACHE_H_
 
-#include <linux/types.h>
+// #include <linux/types.h>
 #include <sys/cdefs.h>
 #include <sys/systm.h>
+/* definition of __read_mostly on DragonFly as
+ * __section("data.read_mostly") */
 
 #define cache_line_size()	__VM_CACHELINE_SIZE
 
