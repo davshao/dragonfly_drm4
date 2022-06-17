@@ -24,18 +24,23 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_REBOOT_H_
-#define _LINUX_REBOOT_H_
+// #ifndef _LINUX_REBOOT_H_
+// #define _LINUX_REBOOT_H_
 
+#ifndef _LINUX_IRQ_H
+#define _LINUX_IRQ_H
+
+#include <linux/irqreturn.h>
+#if 0
 #include <linux/smp.h>
 #include <linux/linkage.h>
 #include <linux/cache.h>
 #include <linux/spinlock.h>
 #include <linux/cpumask.h>
 #include <linux/gfp.h>
-#include <linux/irqreturn.h>
 #include <linux/errno.h>
 #include <linux/wait.h>
 #include <linux/io.h>
+#endif
 
-#endif	/* _LINUX_REBOOT_H_ */
+#endif

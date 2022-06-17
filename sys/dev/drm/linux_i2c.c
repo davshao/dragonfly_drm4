@@ -63,6 +63,20 @@ i2c_del_adapter(struct i2c_adapter *adapter)
 int
 __i2c_transfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 {
+#if defined(__OpenBSD__) /* from drm_linux.c */
+	int ret, tries;
+
+	tries = adapter->retries;
+retry:
+	if (adapter->algo)
+		ret = adapter->algo->master_xfer(adapter, msgs, num);
+	else
+		ret = i2c_master_xfer(adapter, msgs, num);
+	if (ret == -EAGAIN && tries > 0) {
+		tries--;
+		goto retry;
+	}
+#else
 	uint64_t start_ticks;
 	int ret, tries = 0;
 
@@ -75,6 +89,7 @@ __i2c_transfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 			break;
 		tries++;
 	} while (tries < adapter->retries);
+#endif
 
 	return ret;
 }
@@ -93,12 +108,22 @@ i2c_transfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 {
 	int ret;
 
+#if defined(__OpenBSD__)
+	if (adapter->lock_ops)
+		adapter->lock_ops->lock_bus(adapter, 0);
+
+	ret = __i2c_transfer(adapter, msgs, num);
+
+	if (adapter->lock_ops)
+		adapter->lock_ops->unlock_bus(adapter, 0);
+#else
 	if (adapter->algo->master_xfer == NULL)
 		return -EOPNOTSUPP;
 
 	adapter->lock_ops->lock_bus(adapter, I2C_LOCK_SEGMENT);
 	ret = __i2c_transfer(adapter, msgs, num);
 	adapter->lock_ops->unlock_bus(adapter, I2C_LOCK_SEGMENT);
+#endif
 
 	return ret;
 }
@@ -128,7 +153,11 @@ int
 i2c_bit_add_bus(struct i2c_adapter *adapter)
 {
 	adapter->algo = &i2c_bit_algo;
+#if defined(__OpenBSD__)
+	adapter->retries = 3;
+#else
 	adapter->retries = 2;
+#endif
 
 	return 0;
 }

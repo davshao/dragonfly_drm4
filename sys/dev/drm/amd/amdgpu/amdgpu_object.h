@@ -41,7 +41,7 @@ struct amdgpu_bo_param {
 	u32				preferred_domain;
 	u64				flags;
 	enum ttm_bo_type		type;
-	struct reservation_object	*resv;
+	struct dma_resv	*resv;
 };
 
 /* bo virtual addresses in a vm */
@@ -283,13 +283,13 @@ u64 amdgpu_bo_gpu_offset(struct amdgpu_bo *bo);
 int amdgpu_bo_backup_to_shadow(struct amdgpu_device *adev,
 			       struct amdgpu_ring *ring,
 			       struct amdgpu_bo *bo,
-			       struct reservation_object *resv,
+			       struct dma_resv *resv,
 			       struct dma_fence **fence, bool direct);
 int amdgpu_bo_validate(struct amdgpu_bo *bo);
 int amdgpu_bo_restore_from_shadow(struct amdgpu_device *adev,
 				  struct amdgpu_ring *ring,
 				  struct amdgpu_bo *bo,
-				  struct reservation_object *resv,
+				  struct dma_resv *resv,
 				  struct dma_fence **fence,
 				  bool direct);
 uint32_t amdgpu_bo_get_preferred_pin_domain(struct amdgpu_device *adev,

@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,8 +26,14 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_PAGEVEC_H_
-#define _LINUX_PAGEVEC_H_
+#ifndef _LINUX_PAGEVEC_H
+#define _LINUX_PAGEVEC_H
+
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/errno.h>
+
+// #include <linux/mm.h> for put_page()
 
 #define PAGEVEC_SIZE	15
 
@@ -37,8 +45,55 @@ struct pagevec {
 	struct page *pages[PAGEVEC_SIZE];
 };
 
+#if defined(__OpenBSD__)
+void __pagevec_release(struct pagevec *);
+
+/* From drm_linux.c */
+void
+__pagevec_release(struct pagevec *pvec)
+{
+	struct pglist mlist;
+	int i;
+
+	TAILQ_INIT(&mlist);
+	for (i = 0; i < pvec->nr; i++)
+		TAILQ_INSERT_TAIL(&mlist, pvec->pages[i], pageq);
+	uvm_pglistfree(&mlist);
+	pagevec_reinit(pvec);
+}
+#else
+static inline void
+__pagevec_release(struct pagevec *pvec)
+{
+	for (int i = 0; i < pvec->nr; i++)
+		put_page(pvec->pages[i]);
+
+	pvec->nr = 0;
+}
+#endif
+
+#if defined(__OpenBSD__)
+static inline unsigned int
+pagevec_space(struct pagevec *pvec)
+{
+	return PAGEVEC_SIZE - pvec->nr;
+}
+#else
+static inline unsigned int
+pagevec_space(struct pagevec *pvec)
+{
+	return PAGEVEC_SIZE - pvec->nr;
+}
+#endif
+
 static inline void
 pagevec_init(struct pagevec *pvec)
+{
+	pvec->nr = 0;
+}
+
+static inline void
+pagevec_reinit(struct pagevec *pvec)
 {
 	pvec->nr = 0;
 }
@@ -49,6 +104,14 @@ pagevec_count(struct pagevec *pvec)
 	return pvec->nr;
 }
 
+#if defined(__OpenBSD__)
+static inline unsigned int
+pagevec_add(struct pagevec *pvec, struct vm_page *page)
+{
+	pvec->pages[pvec->nr++] = page;
+	return PAGEVEC_SIZE - pvec->nr;
+}
+#else
 static inline unsigned int
 pagevec_add(struct pagevec *pvec, struct page *page)
 {
@@ -57,20 +120,6 @@ pagevec_add(struct pagevec *pvec, struct page *page)
 
 	return (PAGEVEC_SIZE - pvec->nr);
 }
+#endif
 
-static inline void
-__pagevec_release(struct pagevec *pvec)
-{
-	for (int i = 0; i < pvec->nr; i++)
-		put_page(pvec->pages[i]);
-
-	pvec->nr = 0;
-}
-
-static inline unsigned int
-pagevec_space(struct pagevec *pvec)
-{
-	return PAGEVEC_SIZE - pvec->nr;
-}
-
-#endif	/* _LINUX_PAGEVEC_H_ */
+#endif

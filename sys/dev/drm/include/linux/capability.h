@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2015 Rimvydas Jasinskas
  * All rights reserved.
@@ -35,20 +37,57 @@
 #ifndef _LINUX_CAPABILITY_H
 #define _LINUX_CAPABILITY_H
 
-#include <uapi/linux/capability.h>
+// #include <uapi/linux/capability.h>
 
+// #include <sys/types.h>
+
+#include <sys/param.h>
+#include <sys/systm.h>
+#if defined(__OpenBSD__)
+#include <sys/ucred.h>
+#include <machine/cpu.h>
+#else
 #include <sys/globaldata.h>
 #include <sys/thread.h>
 #include <sys/caps.h>
+#endif
+
+// #include <linux/types.h>
 
 struct task_struct;
 
+#if defined(__OpenBSD__)
+#define CAP_SYS_ADMIN	0x1
+#define CAP_SYS_NICE	0x2
+#else
 #define CAP_SYS_ADMIN		SYSCAP_RESTRICTEDROOT
+#define CAP_SYS_NICE		SYSCAP_RESTRICTEDROOT
+#endif
+
+#if defined(__OpenBSD__)
+static inline bool
+capable(int cap) 
+{ 
+	switch (cap) {
+	case CAP_SYS_ADMIN:
+	case CAP_SYS_NICE:
+		return suser(curproc) == 0;
+	default:
+		panic("unhandled capability");
+	}
+}
+#else
+static inline bool
+capable(const int cap)
+{
+	return (caps_priv_check_self(cap) == 0);
+}
+#endif
 
 static inline bool
-capable(const int tryme)
+perfmon_capable(void)
 {
-	return (caps_priv_check_self(tryme) == 0);
+	return false;
 }
 
-#endif /* _LINUX_CAPABILITY_H */
+#endif
