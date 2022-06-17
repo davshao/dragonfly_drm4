@@ -27,10 +27,12 @@
 #ifndef _LINUX_MOUNT_H_
 #define _LINUX_MOUNT_H_
 
+#if 0
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/seqlock.h>
 #include <linux/atomic.h>
+#endif
 
 #endif	/* _LINUX_MOUNT_H_ */

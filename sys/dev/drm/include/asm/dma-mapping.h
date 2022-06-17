@@ -27,8 +27,10 @@
 #ifndef _ASM_DMA_MAPPING_H_
 #define _ASM_DMA_MAPPING_H_
 
+#if 0
 #include <linux/scatterlist.h>
 #include <asm/io.h>
 #include <asm/swiotlb.h>
+#endif
 
 #endif	/* _ASM_DMA_MAPPING_H_ */

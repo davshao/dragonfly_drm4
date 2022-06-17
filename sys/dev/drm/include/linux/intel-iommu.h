@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,15 +26,16 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_INTEL_IOMMU_H_
-#define _LINUX_INTEL_IOMMU_H_
+#ifndef _INTEL_IOMMU_H_
+#define _INTEL_IOMMU_H_
 
-#include <linux/types.h>
-#include <linux/io.h>
-#include <linux/idr.h>
-#include <linux/dma_remapping.h>
-#include <linux/mmu_notifier.h>
-#include <linux/list.h>
+// #include <linux/types.h>
+// #include <linux/io.h>
+// #include <linux/idr.h>
+// #include <linux/dma_remapping.h>
+// #include <linux/mmu_notifier.h>
+// #include <linux/list.h>
+#include <linux/dma-mapping.h>	/* via linux/iova.h */
 #include <asm/cacheflush.h>
 
-#endif	/* _LINUX_INTEL_IOMMU_H_ */
+#endif
