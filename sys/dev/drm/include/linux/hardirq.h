@@ -24,15 +24,22 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_HARDIRQ_H_
-#define _LINUX_HARDIRQ_H_
+#ifndef _LINUX_HARDIRQ_H
+#define _LINUX_HARDIRQ_H
 
-#include <linux/preempt.h>
-#include <linux/lockdep.h>
+// #include <linux/preempt.h>
+// #include <linux/lockdep.h>
 
+/* need to implement for DragonFly */
+/* OpenBSD uses intr_barrier and FreeBSD uses _intr_drain */
 static inline void
 synchronize_irq(unsigned int irq)
 {
 }
 
-#endif	/* _LINUX_HARDIRQ_H_ */
+static inline void
+synchronize_hardirq(unsigned int irq)
+{
+}
+
+#endif

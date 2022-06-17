@@ -24,9 +24,13 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _UAPI_ASM_GENERIC_SHMPARAM_H_
-#define _UAPI_ASM_GENERIC_SHMPARAM_H_
+#ifndef _ASM_SHMPARAM_H_
+#define _ASM_SHMPARAM_H_
 
+#include <sys/shm.h> /* SHMLBA defined here on DragonFly */
+
+#if 0 /* previous DragonFly */
 #define SHMLBA PAGE_SIZE
+#endif
 
-#endif	/* _UAPI_ASM_GENERIC_SHMPARAM_H_ */
+#endif	/* _ASM_SHMPARAM_H_ */

@@ -27,9 +27,11 @@
 #ifndef _LINUX_HWMON_H_
 #define _LINUX_HWMON_H_
 
+#if 0 /* commented out code */
 struct device;
 
 struct device *hwmon_device_register(struct device *dev);
 void hwmon_device_unregister(struct device *dev);
+#endif
 
 #endif	/* _LINUX_HWMON_H_ */

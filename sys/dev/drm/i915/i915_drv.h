@@ -41,15 +41,20 @@
 #include <linux/intel-iommu.h>
 #include <linux/kref.h>
 #include <linux/pm_qos.h>
-#include <linux/reservation.h>
+#include <linux/dma-resv.h>
 #include <linux/shmem_fs.h>
 
 #include <drm/drmP.h>
-#include <drm/intel-gtt.h>
-#include <drm/drm_legacy.h> /* for struct drm_dma_handle */
+
 #include <drm/drm_gem.h>
 #include <drm/drm_auth.h>
 #include <drm/drm_cache.h>
+#include <drm/drm_util.h>
+#include <drm/drm_dsc.h>
+#include <drm/drm_atomic.h>
+#include <drm/drm_connector.h>
+#include <drm/intel-gtt.h>
+#include <drm/drm_legacy.h> /* for struct drm_dma_handle */
 
 #include "i915_params.h"
 #include "i915_reg.h"
@@ -2914,6 +2919,7 @@ static inline unsigned int i915_sg_page_sizes(struct scatterlist *sg)
 	return page_sizes;
 }
 
+#ifdef __linux__
 static inline unsigned int i915_sg_segment_size(void)
 {
 	unsigned int size = swiotlb_max_segment();
@@ -2928,6 +2934,12 @@ static inline unsigned int i915_sg_segment_size(void)
 
 	return size;
 }
+#else
+static inline unsigned int i915_sg_segment_size(void)
+{
+	return PAGE_SIZE;
+}
+#endif
 
 static inline const struct intel_device_info *
 intel_info(const struct drm_i915_private *dev_priv)

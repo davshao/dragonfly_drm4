@@ -27,9 +27,11 @@
 #ifndef _LINUX_MMU_NOTIFIER_H_
 #define _LINUX_MMU_NOTIFIER_H_
 
+#if 0
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/mm_types.h>
+#endif
 
 struct mmu_notifier_ops;
 

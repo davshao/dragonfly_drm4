@@ -40,7 +40,8 @@
 #include <linux/file.h>
 #include <linux/module.h>
 #include <linux/atomic.h>
-#include <linux/reservation.h>
+#include <linux/dma-resv.h>
+#include <linux/stat.h>
 
 #define TTM_ASSERT_LOCKED(param)
 #define TTM_DEBUG(fmt, arg...)
@@ -155,7 +156,7 @@ static void ttm_bo_release_list(struct kref *list_kref)
 	ttm_tt_destroy(bo->ttm);
 	atomic_dec(&bo->bdev->glob->bo_count);
 	dma_fence_put(bo->moving);
-	reservation_object_fini(&bo->ttm_resv);
+	dma_resv_fini(&bo->ttm_resv);
 	mutex_destroy(&bo->wu_mutex);
 	bo->destroy(bo);
 	ttm_mem_global_free(bdev->glob->mem_glob, acc_size);
@@ -356,29 +357,29 @@ static int ttm_bo_individualize_resv(struct ttm_buffer_object *bo)
 	if (bo->resv == &bo->ttm_resv)
 		return 0;
 
-	BUG_ON(!reservation_object_trylock(&bo->ttm_resv));
+	BUG_ON(!dma_resv_trylock(&bo->ttm_resv));
 
-	r = reservation_object_copy_fences(&bo->ttm_resv, bo->resv);
+	r = dma_resv_copy_fences(&bo->ttm_resv, bo->resv);
 	if (r)
-		reservation_object_unlock(&bo->ttm_resv);
+		dma_resv_unlock(&bo->ttm_resv);
 
 	return r;
 }
 
 static void ttm_bo_flush_all_fences(struct ttm_buffer_object *bo)
 {
-	struct reservation_object_list *fobj;
+	struct dma_resv_list *fobj;
 	struct dma_fence *fence;
 	int i;
 
-	fobj = reservation_object_get_list(&bo->ttm_resv);
-	fence = reservation_object_get_excl(&bo->ttm_resv);
+	fobj = dma_resv_shared_list(&bo->ttm_resv);
+	fence = dma_resv_excl_fence(&bo->ttm_resv);
 	if (fence && !fence->ops->signaled)
 		dma_fence_enable_sw_signaling(fence);
 
 	for (i = 0; fobj && i < fobj->shared_count; ++i) {
 		fence = rcu_dereference_protected(fobj->shared[i],
-					reservation_object_held(bo->resv));
+					dma_resv_held(bo->resv));
 
 		if (!fence->ops->signaled)
 			dma_fence_enable_sw_signaling(fence);
@@ -396,7 +397,7 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 		/* Last resort, if we fail to allocate memory for the
 		 * fences block for the BO to become idle
 		 */
-		reservation_object_wait_timeout_rcu(bo->resv, true, false,
+		dma_resv_wait_timeout(bo->resv, true, false,
 						    30 * HZ);
 		lockmgr(&glob->lru_lock, LK_EXCLUSIVE);
 		goto error;
@@ -405,11 +406,11 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 	lockmgr(&glob->lru_lock, LK_EXCLUSIVE);
 	ret = __ttm_bo_reserve(bo, false, true, NULL);
 	if (!ret) {
-		if (reservation_object_test_signaled_rcu(&bo->ttm_resv, true)) {
+		if (dma_resv_test_signaled(&bo->ttm_resv, true)) {
 			ttm_bo_del_from_lru(bo);
 			lockmgr(&glob->lru_lock, LK_RELEASE);
 			if (bo->resv != &bo->ttm_resv)
-				reservation_object_unlock(&bo->ttm_resv);
+				dma_resv_unlock(&bo->ttm_resv);
 
 			ttm_bo_cleanup_memtype_use(bo);
 			__ttm_bo_unreserve(bo);
@@ -431,7 +432,7 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 		__ttm_bo_unreserve(bo);
 	}
 	if (bo->resv != &bo->ttm_resv)
-		reservation_object_unlock(&bo->ttm_resv);
+		dma_resv_unlock(&bo->ttm_resv);
 
 error:
 	kref_get(&bo->list_kref);
@@ -460,7 +461,7 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo,
 			       bool unlock_resv)
 {
 	struct ttm_bo_global *glob = bo->bdev->glob;
-	struct reservation_object *resv;
+	struct dma_resv *resv;
 	int ret;
 
 	if (unlikely(list_empty(&bo->ddestroy)))
@@ -468,7 +469,7 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo,
 	else
 		resv = &bo->ttm_resv;
 
-	if (reservation_object_test_signaled_rcu(resv, true))
+	if (dma_resv_test_signaled(resv, true))
 		ret = 0;
 	else
 		ret = -EBUSY;
@@ -480,7 +481,7 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo,
 			ww_mutex_unlock(&bo->resv->lock);
 		lockmgr(&glob->lru_lock, LK_RELEASE);
 
-		lret = reservation_object_wait_timeout_rcu(resv, true,
+		lret = dma_resv_wait_timeout(resv, true,
 							   interruptible,
 							   30 * HZ);
 
@@ -548,12 +549,12 @@ static bool ttm_bo_delayed_delete(struct ttm_bo_device *bdev, bool remove_all)
 
 		if (remove_all || bo->resv != &bo->ttm_resv) {
 			lockmgr(&glob->lru_lock, LK_RELEASE);
-			reservation_object_lock(bo->resv, NULL);
+			dma_resv_lock(bo->resv, NULL);
 
 			lockmgr(&glob->lru_lock, LK_EXCLUSIVE);
 			ttm_bo_cleanup_refs(bo, false, !remove_all, true);
 
-		} else if (reservation_object_trylock(bo->resv)) {
+		} else if (dma_resv_trylock(bo->resv)) {
 			ttm_bo_cleanup_refs(bo, false, !remove_all, true);
 		} else {
 			lockmgr(&glob->lru_lock, LK_RELEASE);
@@ -803,9 +804,9 @@ static int ttm_bo_add_move_fence(struct ttm_buffer_object *bo,
 	lockmgr(&man->move_lock, LK_RELEASE);
 
 	if (fence) {
-		reservation_object_add_shared_fence(bo->resv, fence);
+		dma_resv_add_shared_fence(bo->resv, fence);
 
-		ret = reservation_object_reserve_shared(bo->resv);
+		ret = dma_resv_reserve_shared(bo->resv, 1);
 		if (unlikely(ret))
 			return ret;
 
@@ -910,7 +911,7 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 	bool has_erestartsys = false;
 	int i, ret;
 
-	ret = reservation_object_reserve_shared(bo->resv);
+	ret = dma_resv_reserve_shared(bo->resv, 1);
 	if (unlikely(ret))
 		return ret;
 
@@ -1125,7 +1126,7 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 			 struct ttm_operation_ctx *ctx,
 			 size_t acc_size,
 			 struct sg_table *sg,
-			 struct reservation_object *resv,
+			 struct dma_resv *resv,
 			 void (*destroy) (struct ttm_buffer_object *))
 {
 	int ret = 0;
@@ -1183,7 +1184,7 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 	} else {
 		bo->resv = &bo->ttm_resv;
 	}
-	reservation_object_init(&bo->ttm_resv);
+	dma_resv_init(&bo->ttm_resv);
 	atomic_inc(&bo->bdev->glob->bo_count);
 	drm_vma_node_reset(&bo->vma_node);
 	bo->priority = 0;
@@ -1235,7 +1236,7 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 		bool interruptible,
 		size_t acc_size,
 		struct sg_table *sg,
-		struct reservation_object *resv,
+		struct dma_resv *resv,
 		void (*destroy) (struct ttm_buffer_object *))
 {
 	struct ttm_operation_ctx ctx = { interruptible, false };
@@ -1643,13 +1644,13 @@ int ttm_bo_wait(struct ttm_buffer_object *bo,
 	long timeout = 15 * HZ;
 
 	if (no_wait) {
-		if (reservation_object_test_signaled_rcu(bo->resv, true))
+		if (dma_resv_test_signaled(bo->resv, true))
 			return 0;
 		else
 			return -EBUSY;
 	}
 
-	timeout = reservation_object_wait_timeout_rcu(bo->resv, true,
+	timeout = dma_resv_wait_timeout(bo->resv, true,
 						      interruptible, timeout);
 	if (timeout < 0)
 		return timeout;
@@ -1657,7 +1658,7 @@ int ttm_bo_wait(struct ttm_buffer_object *bo,
 	if (timeout == 0)
 		return -EBUSY;
 
-	reservation_object_add_excl_fence(bo->resv, NULL);
+	dma_resv_add_excl_fence(bo->resv, NULL);
 	return 0;
 }
 EXPORT_SYMBOL(ttm_bo_wait);

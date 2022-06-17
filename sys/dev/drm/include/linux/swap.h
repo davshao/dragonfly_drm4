@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2015-2018 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,9 +26,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_SWAP_H_
-#define _LINUX_SWAP_H_
+#ifndef _LINUX_SWAP_H
+#define _LINUX_SWAP_H
 
+#if 0
 #include <linux/spinlock.h>
 #include <linux/mmzone.h>
 #include <linux/list.h>
@@ -34,22 +37,27 @@
 #include <linux/fs.h>
 #include <linux/atomic.h>
 #include <asm/page.h>
+#endif
 
-#include <vm/vm_page2.h>
-
-static inline void mark_page_accessed(struct page *m)
-{
-	vm_page_flag_set((struct vm_page *)m, PG_REFERENCED);
-}
-
+#if defined(__OpenBSD__)
+#include <uvm/uvm_extern.h>
+#else
 /* from vm/swap_pager.h */
 #include <sys/conf.h>
+#include <vm/vm_page2.h>
+#endif
+
+#include <linux/mm_types.h>
+
 extern int nswdev;
 extern struct swdevt *swdevt;
 
 static inline long
 get_nr_swap_pages(void)
 {
+#if defined(__OpenBSD__)
+	return uvmexp.swpages - uvmexp.swpginuse;
+#else
 	int n;
 	struct swdevt *sp;
 	long total_pages = 0;
@@ -63,6 +71,23 @@ get_nr_swap_pages(void)
 	}
 
 	return (total_pages - used_pages);
+#endif
 }
 
-#endif	/* _LINUX_SWAP_H_ */
+/* 
+ * XXX For now, we don't want the shrinker to be too aggressive, so
+ * pretend we're not called from the pagedaemon even if we are.
+ */
+static inline int
+current_is_kswapd(void)
+{
+	return 0;
+}
+
+static inline void
+mark_page_accessed(struct page *m)
+{
+	vm_page_flag_set((struct vm_page *)m, PG_REFERENCED);
+}
+
+#endif

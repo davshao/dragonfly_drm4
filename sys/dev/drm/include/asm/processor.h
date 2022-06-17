@@ -27,12 +27,16 @@
 #ifndef _ASM_PROCESSOR_H_
 #define _ASM_PROCESSOR_H_
 
+#if 0
 #include <asm/types.h>
 #include <asm/current.h>
 #include <asm/cpufeatures.h>
 #include <asm/page.h>
-#include <asm/pgtable_types.h>
 #include <asm/special_insns.h>
+#endif
+
+#if 0
+#include <asm/pgtable_types.h>
 
 #include <linux/cache.h>
 #include <linux/threads.h>
@@ -41,8 +45,11 @@
 #include <linux/irqflags.h>
 
 #include <machine/cpufunc.h>
+#endif
 
+#if 0
 #define cpu_relax()	cpu_pause()
+#endif
 
 struct cpuinfo_x86 {
 	u16		x86_clflush_size;

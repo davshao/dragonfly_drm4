@@ -27,9 +27,11 @@
 #ifndef _LINUX_STAT_H_
 #define _LINUX_STAT_H_
 
+#include <sys/stat.h>
+
 #define S_IRUGO		(S_IRUSR|S_IRGRP|S_IROTH)
 
-#include <linux/types.h>
-#include <linux/time.h>
+// #include <linux/types.h>
+// #include <linux/time.h>
 
 #endif	/* _LINUX_STAT_H_ */

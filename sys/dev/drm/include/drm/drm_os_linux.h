@@ -3,6 +3,9 @@
  * OS abstraction macros.
  */
 
+#ifndef __DRM_OS_LINUX_H__
+#define __DRM_OS_LINUX_H__
+
 #include <linux/interrupt.h>	/* For task queue support */
 #include <linux/sched/signal.h>
 #include <linux/delay.h>
@@ -70,3 +73,5 @@ do {								\
 	__set_current_state(TASK_RUNNING);			\
 	remove_wait_queue(&(queue), &entry);			\
 } while (0)
+
+#endif

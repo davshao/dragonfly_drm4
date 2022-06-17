@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2014 François Tigeot
  * All rights reserved.
@@ -24,21 +26,44 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_DELAY_H_
-#define _LINUX_DELAY_H_
+#ifndef _LINUX_DELAY_H
+#define _LINUX_DELAY_H
 
+#include <sys/param.h>
+#if defined(__OpenBSD__)
+#include <linux/kernel.h>
+#else
+#include <sys/systm.h> /* declares void DELAY(int usec) */
 #include <linux/jiffies.h>
-#include <sys/systm.h>
+#endif
 
-static inline void msleep(unsigned int msecs)
+static inline void
+udelay(unsigned long usecs)
 {
-	static int dummy;
-	int delay = MAX(msecs*hz/1000, 1);
-
-	tsleep(&dummy, 0, "linux_msleep", delay);
+	DELAY(usecs);
 }
 
-static __inline void
+static inline void
+ndelay(unsigned long nsecs)
+{
+#if defined(__OpenBSD__)
+	DELAY(MAX(nsecs / 1000, 1));
+#else
+	DELAY(howmany(nsecs, 1000));
+#endif
+}
+
+static inline void
+usleep_range(unsigned long min, unsigned long max)
+{
+#if defined(__OpenBSD__)
+	DELAY((min + max) / 2);
+#else /* not sure API question */
+	DELAY(min);
+#endif
+}
+
+static inline void
 mdelay(unsigned long msecs)
 {
 	int loops = msecs;
@@ -46,15 +71,31 @@ mdelay(unsigned long msecs)
 		DELAY(1000);
 }
 
-static inline void ndelay(unsigned long x)
+#define drm_msleep(x)		mdelay(x)
+
+static inline unsigned int
+msleep_interruptible(unsigned int msecs)
 {
-	DELAY(howmany(x, 1000));
+#if defined(__OpenBSD__)
+	int r = tsleep_nsec(&nowake, PWAIT|PCATCH, "msleepi",
+	    MSEC_TO_NSEC(msecs));
+#else
+	static int dummy;
+	int delay = MAX(msecs*hz/1000, 1);
+	int r = tsleep(&dummy, PCATCH, "lmslint", delay);
+#endif
+	if (r == EINTR)
+		return 1;
+	return 0;
 }
 
-static __inline void
-usleep_range(unsigned long min, unsigned long max)
+static inline void
+msleep(unsigned int msecs)
 {
-	DELAY(min);
+	static int dummy;
+	int delay = MAX(msecs*hz/1000, 1);
+
+	tsleep(&dummy, 0, "linux_msleep", delay);
 }
 
-#endif	/* _LINUX_DELAY_H_ */
+#endif

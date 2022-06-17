@@ -27,6 +27,7 @@
 #ifndef _ASM_BITOPS_NON_ATOMIC_H_
 #define _ASM_BITOPS_NON_ATOMIC_H_
 
+#if 0
 static inline void __set_bit(int nr, volatile unsigned long *addr)
 {
 	*(addr + (nr / BITS_PER_LONG)) |= (1LU << (nr % BITS_PER_LONG));
@@ -36,5 +37,6 @@ static inline void __clear_bit(int nr, volatile unsigned long *addr)
 {
 	*(addr + (nr / BITS_PER_LONG)) &= ~(1LU << (nr % BITS_PER_LONG));
 }
+#endif
 
 #endif	/* _ASM_BITOPS_NON_ATOMIC_H_ */

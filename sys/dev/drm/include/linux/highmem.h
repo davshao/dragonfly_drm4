@@ -1,3 +1,20 @@
+/*	$OpenBSD: highmem.h,v 1.4 2021/07/28 13:28:05 kettenis Exp $	*/
+/*
+ * Copyright (c) 2013, 2014, 2015 Mark Kettenis
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
 /*
  * Copyright (c) 2014-2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,52 +41,60 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_HIGHMEM_H_
-#define _LINUX_HIGHMEM_H_
+#ifndef _LINUX_HIGHMEM_H
+#define _LINUX_HIGHMEM_H
 
+#if defined(__OpenBSD__)
+#include <sys/param.h>
+#include <uvm/uvm_extern.h>
+#else
 #include <machine/vmparam.h>
+#endif
 
+#include <linux/uaccess.h>
+#include <asm/pgtable.h>
+
+#include <asm/cacheflush.h> /* set_memory_wb() commented out OpenBSD */
+
+#if 0
 #include <linux/kernel.h>
 #include <linux/bug.h>
 #include <linux/mm.h>
-#include <linux/uaccess.h>
 #include <linux/hardirq.h>
+#endif
 
-#include <asm/cacheflush.h>
+#if defined(__OpenBSD__)
+void	*kmap(struct vm_page *);
+#else
+void	*kmap(struct page *);
+#endif
 
-static inline struct page *
-kmap_to_page(void *addr)
-{
-	if (addr == NULL)
-		return NULL;
+#if defined(__OpenBSD__)
+void	kunmap_va(void *addr);
+#else
+void	kunmap(struct page *pg);
+#endif
 
-	return (struct page *)PHYS_TO_VM_PAGE(vtophys(addr));
-}
+/* No longer used in 5.15+ kernel drm */
+#if defined(__OpenBSD__)
+#define kmap_to_page(ptr)	(ptr)
+#else
+struct page *kmap_to_page(void *addr);
+#endif
 
-static inline void *kmap(struct page *pg)
-{
-	return (void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS( (struct vm_page *)pg ));
-}
+#if defined(__OpenBSD__)
+void	*kmap_atomic_prot(struct vm_page *, pgprot_t);
+#else
+void	*kmap_atomic_prot(struct page *, pgprot_t);
+#endif
 
-static inline void kunmap(struct page *pg)
-{
-	/* Nothing to do on systems with a direct memory map */
-}
+void	kunmap_atomic(void *);
 
-static inline void *kmap_atomic(struct page *pg)
-{
-	return (void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS( (struct vm_page *)pg ));
-}
+void *
+#if defined(__OpenBSD__)
+kmap_atomic(struct vm_page *pg);
+#else
+kmap_atomic(struct page *pg);
+#endif
 
-static inline void *
-kmap_atomic_prot(struct page *pg, pgprot_t prot)
-{
-	return kmap_atomic(pg);
-}
-
-static inline void kunmap_atomic(void *vaddr)
-{
-	/* Nothing to do on systems with a direct memory map */
-}
-
-#endif	/* _LINUX_HIGHMEM_H_ */
+#endif
