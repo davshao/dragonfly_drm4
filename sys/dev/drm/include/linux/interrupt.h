@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2017-2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,35 +26,36 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_INTERRUPT_H_
-#define _LINUX_INTERRUPT_H_
+#ifndef _LINUX_INTERRUPT_H
+#define _LINUX_INTERRUPT_H
 
 #include <linux/kernel.h>
 #include <linux/bitops.h>
 #include <linux/preempt.h>
 #include <linux/cpumask.h>
-#include <linux/irqreturn.h>
 #include <linux/hardirq.h>
 #include <linux/irqflags.h>
 #include <linux/hrtimer.h>
 #include <linux/kref.h>
 
 #include <linux/atomic.h>
+#include <linux/compiler.h>
+#include <linux/irqreturn.h>
 
 #define IRQF_SHARED	0x00000080
 
-struct tasklet_struct {
-	unsigned long state;
-	void (*func)(unsigned long);
-	unsigned long data;
-	atomic_t count;
-};
+#if defined(__OpenBSD__)
 
-enum {
-	TASKLET_STATE_SCHED,
-	TASKLET_STATE_RUN,
-	TASKLET_IS_DYING
-};
+#define request_irq(irq, hdlr, flags, name, dev)	(0)
+
+static inline void
+free_irq(unsigned int irq, void *dev)
+{
+}
+
+typedef irqreturn_t (*irq_handler_t)(int, void *);
+
+#else
 
 typedef irqreturn_t (*irq_handler_t)(int, void *);
 
@@ -64,22 +67,64 @@ void free_irq(unsigned int irq, void *dev_id);
 void disable_irq(unsigned int irq);
 void enable_irq(unsigned int irq);
 
-void tasklet_init(struct tasklet_struct *t,
-		  void (*func)(unsigned long), unsigned long data);
+#endif
+
+struct tasklet_struct {
+	void (*func)(unsigned long);
+	void (*callback)(struct tasklet_struct *);
+	unsigned long data;
+	unsigned long state;
+	atomic_t count;
+};
+
+#if defined(__OpenBSD_)
+#define TASKLET_STATE_SCHED	1
+#define TASKLET_STATE_RUN	0
+#else
+enum {
+	TASKLET_STATE_SCHED,
+	TASKLET_STATE_RUN,
+	TASKLET_IS_DYING
+};
+#endif
+
+#define from_tasklet(x, t, f) \
+	container_of(t, typeof(*x), f)
+
+void
+tasklet_init(struct tasklet_struct *ts, void (*func)(unsigned long),
+    unsigned long data);
+
+void
+tasklet_setup(struct tasklet_struct *ts,
+    void (*callback)(struct tasklet_struct *));
+
 void tasklet_schedule(struct tasklet_struct *t);
 void tasklet_hi_schedule(struct tasklet_struct *t);
 void tasklet_kill(struct tasklet_struct *t);
 
 static inline void
-tasklet_enable(struct tasklet_struct *t)
+tasklet_disable(struct tasklet_struct *ts)
 {
-	atomic_dec(&t->count);
+	atomic_inc(&ts->count);
+}
+
+static inline void 
+tasklet_disable_nosync(struct tasklet_struct *ts)
+{
+	atomic_inc(&ts->count);
+#if defined(__OpenBSD__) /* does nothing on __amd64__ */
+	smp_mb__after_atomic();
+#endif
 }
 
 static inline void
-tasklet_disable(struct tasklet_struct *t)
+tasklet_enable(struct tasklet_struct *ts)
 {
-	atomic_inc(&t->count);
+#if defined(__OpenBSD__) /* does nothing on __amd64__ */
+	smp_mb__before_atomic();
+#endif
+	atomic_dec(&ts->count);
 }
 
-#endif	/* _LINUX_INTERRUPT_H_ */
+#endif

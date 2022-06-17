@@ -23,24 +23,28 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _LINUX_HRTIMER_H_
-#define _LINUX_HRTIMER_H_
+#ifndef _LINUX_HRTIMER_H
+#define _LINUX_HRTIMER_H
 
-#include <linux/rbtree.h>
+#include <sys/types.h>
+#if defined(__OpenBSD__)
+#include <sys/timeout.h>
+#else
+#include <sys/callout.h>
+#include <sys/thread.h>
+#endif
 #include <linux/ktime.h>
-#include <linux/init.h>
-#include <linux/list.h>
-#include <linux/wait.h>
-#include <linux/timer.h>
+#include <linux/rbtree.h>
+// #include <linux/init.h>
+// #include <linux/list.h>
+// #include <linux/wait.h>
+// #include <linux/timer.h>
+
+enum hrtimer_restart { HRTIMER_NORESTART, HRTIMER_RESTART };
 
 enum hrtimer_mode {
 	HRTIMER_MODE_ABS = 0x0,
 	HRTIMER_MODE_REL = 0x1,
-};
-
-enum hrtimer_restart {
-	HRTIMER_NORESTART,	/* Timer is not restarted */
-	HRTIMER_RESTART,	/* Timer must be restarted */
 };
 
 struct hrtimer {
@@ -52,15 +56,37 @@ struct hrtimer {
 	struct lwkt_token timer_token;
 };
 
+#if defined(__OpenBSD__)
+#define HRTIMER_MODE_REL	1
+#endif
+
+#if defined(__OpenBSD__)
+#define hrtimer_cancel(x)		timeout_del_barrier(x)
+#else
+int
+hrtimer_cancel(struct hrtimer *timer);
+#endif
+
+#if defined(__OpenBSD__)
+#define hrtimer_try_to_cancel(x)	timeout_del(x)	/* XXX ret -1 if running */
+#else
+/* Not sure */
+int
+hrtimer_try_to_cancel(struct hrtimer *timer);
+#endif
+
+#if defined(__OpenBSD__)
+#define hrtimer_active(x)		timeout_pending(x)
+#else
+bool
+hrtimer_active(const struct hrtimer *timer);
+#endif
+
 extern void hrtimer_init(struct hrtimer *timer, clockid_t which_clock,
 			 enum hrtimer_mode mode);
 
 extern void hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 				   u64 range_ns, const enum hrtimer_mode mode);
-
-extern int hrtimer_cancel(struct hrtimer *timer);
-
-extern bool hrtimer_active(const struct hrtimer *timer);
 
 static inline void
 hrtimer_start(struct hrtimer *timer, ktime_t tim, const enum hrtimer_mode mode)
@@ -74,4 +100,4 @@ hrtimer_set_expires(struct hrtimer *timer, ktime_t time)
 	/* XXX: hrtimer_set_expires() not implemented */
 }
 
-#endif /* _LINUX_HRTIMER_H_ */
+#endif

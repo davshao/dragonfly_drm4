@@ -27,6 +27,7 @@
 #ifndef _LINUX_FDTABLE_H_
 #define _LINUX_FDTABLE_H_
 
+#if 0
 #include <linux/posix_types.h>
 #include <linux/compiler.h>
 #include <linux/spinlock.h>
@@ -36,5 +37,6 @@
 #include <linux/fs.h>
 
 #include <linux/atomic.h>
+#endif
 
 #endif	/* _LINUX_FDTABLE_H_ */
