@@ -37,7 +37,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/module.h>
-#include <linux/reservation.h>
+#include <linux/dma-resv.h>
 
 struct ttm_transfer_obj {
 	struct ttm_buffer_object base;
@@ -498,7 +498,7 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	fbo->base.destroy = &ttm_transfered_destroy;
 	fbo->base.acc_size = 0;
 	fbo->base.resv = &fbo->base.ttm_resv;
-	reservation_object_init(fbo->base.resv);
+	dma_resv_init(fbo->base.resv);
 	ret = ww_mutex_trylock(&fbo->base.resv->lock);
 	WARN_ON(!ret);
 
@@ -672,7 +672,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 	int ret;
 	struct ttm_buffer_object *ghost_obj;
 
-	reservation_object_add_excl_fence(bo->resv, fence);
+	dma_resv_add_excl_fence(bo->resv, fence);
 	if (evict) {
 		ret = ttm_bo_wait(bo, false, false);
 		if (ret)
@@ -699,7 +699,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 		if (ret)
 			return ret;
 
-		reservation_object_add_excl_fence(ghost_obj->resv, fence);
+		dma_resv_add_excl_fence(ghost_obj->resv, fence);
 
 		/**
 		 * If we're not moving to fixed memory, the TTM object
@@ -735,7 +735,7 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 
 	int ret;
 
-	reservation_object_add_excl_fence(bo->resv, fence);
+	dma_resv_add_excl_fence(bo->resv, fence);
 
 	if (!evict) {
 		struct ttm_buffer_object *ghost_obj;
@@ -755,7 +755,7 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 		if (ret)
 			return ret;
 
-		reservation_object_add_excl_fence(ghost_obj->resv, fence);
+		dma_resv_add_excl_fence(ghost_obj->resv, fence);
 
 		/**
 		 * If we're not moving to fixed memory, the TTM object
@@ -824,7 +824,7 @@ int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo)
 	if (ret)
 		return ret;
 
-	ret = reservation_object_copy_fences(ghost->resv, bo->resv);
+	ret = dma_resv_copy_fences(ghost->resv, bo->resv);
 	/* Last resort, wait for the BO to be idle when we are OOM */
 	if (ret)
 		ttm_bo_wait(bo, false, false);

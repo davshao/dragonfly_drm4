@@ -27,6 +27,7 @@
 #ifndef _ASM_STRING_64_H
 #define _ASM_STRING_64_H
 
+#if 0
 #include <linux/jump_label.h>
 
 static inline void *
@@ -41,5 +42,6 @@ memset64(u64 *s, uint64_t v, size_t n)
 
 	return s;
 }
+#endif
 
 #endif	/* _ASM_STRING_64_H */

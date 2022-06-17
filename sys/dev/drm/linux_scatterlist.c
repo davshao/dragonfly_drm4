@@ -35,6 +35,35 @@
 #include <linux/highmem.h>
 
 /**
+ * sg_chain - Chain two sglists together
+ * @prv:        First scatterlist
+ * @prv_nents:  Number of entries in prv
+ * @sgl:        Second scatterlist
+ *
+ * Description:
+ *   Links @prv@ and @sgl@ together, to form a longer scatterlist.
+ *
+ **/
+static inline void
+sg_chain(struct scatterlist *prv, unsigned int prv_nents,
+					struct scatterlist *sgl)
+{
+/*
+ * offset and length are unused for chain entry.  Clear them.
+ */
+	struct scatterlist *sg = &prv[prv_nents - 1];
+
+	sg->offset = 0;
+	sg->length = 0;
+
+	/*
+	 * Indicate a link pointer, and set the link to the second list.
+	 */
+	sg->flags = SG_CHAIN;
+	sg->sl_un.sg = sgl;
+}
+
+/**
  * __sg_alloc_table - Allocate and initialize an sg table with given allocator
  * @table:      The sg table header to use
  * @nents:      Number of entries in sg list
@@ -52,7 +81,7 @@
  *   __sg_free_table() to cleanup any leftover allocations.
  *
  **/
-int
+static int
 __sg_alloc_table(struct sg_table *table, unsigned int nents,
 		unsigned int max_ents, gfp_t gfp_mask)
 {
@@ -114,7 +143,7 @@ __sg_alloc_table(struct sg_table *table, unsigned int nents,
 	return 0;
 }
 
-void
+static void
 __sg_free_table(struct sg_table *table, unsigned int max_ents)
 {
 	struct scatterlist *sgl, *next;
@@ -148,6 +177,25 @@ __sg_free_table(struct sg_table *table, unsigned int max_ents)
 	}
 
 	table->sgl = NULL;
+}
+
+int
+sg_alloc_table(struct sg_table *table, unsigned int nents, gfp_t gfp_mask)
+{
+	int ret;
+
+	ret = __sg_alloc_table(table, nents, SG_MAX_SINGLE_ALLOC,
+		gfp_mask);
+	if (unlikely(ret))
+		__sg_free_table(table, SG_MAX_SINGLE_ALLOC);
+
+	return ret;
+}
+
+void
+sg_free_table(struct sg_table *table)
+{
+	__sg_free_table(table, SG_MAX_SINGLE_ALLOC);
 }
 
 size_t
