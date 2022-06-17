@@ -43,34 +43,64 @@ SLIST_HEAD(vmap_list_head, vmap) vmap_list = SLIST_HEAD_INITIALIZER(vmap_list);
 
 /* vmap: map an array of pages into virtually contiguous space */
 void *
-vmap(struct page **pages, unsigned int count,
-	unsigned long flags, pgprot_t prot)
+vmap(struct page **pages, unsigned int npages, unsigned long flags,
+    pgprot_t prot)
 {
+#if defined(__OpenBSD__)
+	vaddr_t va;
+	paddr_t pa;
+	int i;
+
+	va = (vaddr_t)km_alloc(PAGE_SIZE * npages, &kv_any, &kp_none,
+	    &kd_nowait);
+	if (va == 0)
+		return NULL;
+	for (i = 0; i < npages; i++) {
+		pa = VM_PAGE_TO_PHYS(pages[i]) | prot;
+		pmap_enter(pmap_kernel(), va + (i * PAGE_SIZE), pa,
+		    PROT_READ | PROT_WRITE,
+		    PROT_READ | PROT_WRITE | PMAP_WIRED);
+		pmap_update(pmap_kernel());
+	}
+
+	return (void *)va;
+#else
 	struct vmap *vmp;
-	vm_offset_t off;
-	size_t size;
+	vm_offset_t va;
 
 	vmp = kmalloc(sizeof(struct vmap), M_DRM, M_WAITOK | M_ZERO);
 
-	size = count * PAGE_SIZE;
-	off = kmem_alloc_nofault(kernel_map, size,
+	va = kmem_alloc_nofault(kernel_map, PAGE_SIZE * npages,
 				 VM_SUBSYS_DRM_VMAP, PAGE_SIZE);
-	if (off == 0)
+	if (va == 0)
 		return (NULL);
 
-	vmp->addr = (void *)off;
-	vmp->npages = count;
-	pmap_qenter(off, (struct vm_page **)pages, count);
+	vmp->addr = (void *)va;
+	vmp->npages = npages;
+	pmap_qenter(va, (struct vm_page **)pages, npages);
 	lockmgr(&vmap_lock, LK_EXCLUSIVE);
 	SLIST_INSERT_HEAD(&vmap_list, vmp, vm_vmaps);
 	lockmgr(&vmap_lock, LK_RELEASE);
 
-	return (void *)off;
+	return (void *)va;
+#endif
 }
 
+#if defined(__OpenBSD__)
+void
+vunmap(void *addr, size_t size)
+#else
 void
 vunmap(const void *addr)
+#endif
 {
+#if defined(__OpenBSD__)
+	vaddr_t va = (vaddr_t)addr;
+
+	pmap_remove(pmap_kernel(), va, va + size);
+	pmap_update(pmap_kernel());
+	km_free((void *)va, size, &kv_any, &kp_none);
+#else
 	struct vmap *vmp, *tmp_vmp;
 	size_t size;
 
@@ -89,11 +119,30 @@ found:
 	SLIST_REMOVE(&vmap_list, vmp, vmap, vm_vmaps);
 	lockmgr(&vmap_lock, LK_RELEASE);
 	kfree(vmp);
+#endif
 }
 
+/* not sure
+ * might need 3 values
+ * 0   not mapped in kernel_map
+ * 1   mapped in kernel map
+ * 2   mapped by vmap
+ */
 int
 is_vmalloc_addr(const void *x)
 {
+#if defined(__OpenBSD__)
+	vaddr_t min, max, addr;
+
+	min = vm_map_min(kernel_map);
+	max = vm_map_max(kernel_map);
+	addr = (vaddr_t)p;
+
+	if (addr >= min && addr <= max)
+		return true;
+	else
+		return false;
+#else
 	struct vmap *vmp, *tmp_vmp;
 
 	SLIST_FOREACH_MUTABLE(vmp, &vmap_list, vm_vmaps, tmp_vmp) {
@@ -102,25 +151,30 @@ is_vmalloc_addr(const void *x)
 	}
 
 	return false;
+#endif
 }
 
 void *
 vmalloc(unsigned long size)
 {
-	return kmalloc(size, M_DRM, M_WAITOK);
+	return __kmalloc(size, M_DRM, M_WAITOK);
 }
 
 void *
 vzalloc(unsigned long size)
 {
-	return kmalloc(size, M_DRM, M_WAITOK | M_ZERO);
+#if defined(__OpenBSD__)
+	return malloc(size, M_DRM, M_WAITOK | M_CANFAIL | M_ZERO);
+#else
+	return __kmalloc(size, M_DRM, M_WAITOK | M_ZERO);
+#endif
 }
 
 /* allocate zeroed virtually contiguous memory for userspace */
 void *
 vmalloc_user(unsigned long size)
 {
-	return kmalloc(size, M_DRM, M_WAITOK | M_ZERO);
+	return __kmalloc(size, M_DRM, M_WAITOK | M_ZERO);
 }
 
 void
@@ -133,13 +187,42 @@ vfree(const void *addr)
 }
 
 void *
-kvmalloc_array(size_t n, size_t size, gfp_t flags)
+kvmalloc(size_t size, gfp_t flags)
 {
+	return __kmalloc(size, M_DRM, flags);
+}
+
+void *
+kvmalloc_array(size_t n, size_t size, int flags)
+{
+#if defined(__OpenBSD__)
+	if (n != 0 && SIZE_MAX / n < size)
+		return NULL;
+#else
 	if (n == 0)
 		return NULL;
 
 	if (n > SIZE_MAX / size)
 		return NULL;
+#endif
 
-	return kmalloc(n * size, M_DRM, flags);
+	return __kmalloc(n * size, M_DRM, flags);
+}
+
+void *
+kvcalloc(size_t n, size_t size, int flags)
+{
+	return kvmalloc_array(n, size, flags | M_ZERO);
+}
+
+void *
+kvzalloc(size_t size, int flags)
+{
+	return __kmalloc(size, M_DRM, flags | M_ZERO);
+}
+
+void
+kvfree(void *objp)
+{
+	kfree(objp);
 }

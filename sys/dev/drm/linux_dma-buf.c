@@ -32,8 +32,10 @@
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/poll.h>
-#include <linux/reservation.h>
+#include <linux/dma-resv.h>
 #include <linux/mm.h>
+#include <linux/dma-direction.h>
+#include <linux/fs.h>
 
 static int
 dmabuf_stat(struct file *fp, struct stat *sb, struct ucred *cred)
@@ -54,7 +56,7 @@ dmabuf_close(struct file *fp)
 	return (EINVAL);
 }
 
-struct fileops dmabuf_fileops = {
+struct fileops dmabufops = {
 	.fo_read	= badfo_readwrite,
 	.fo_write	= badfo_readwrite,
 	.fo_ioctl	= badfo_ioctl,
@@ -64,30 +66,124 @@ struct fileops dmabuf_fileops = {
 };
 
 struct dma_buf *
-dma_buf_export(const struct dma_buf_export_info *exp_info)
+dma_buf_export(const struct dma_buf_export_info *info)
 {
+#if defined(__OpenBSD__)
+	struct proc *p = curproc;
+#endif
 	struct dma_buf *dmabuf;
 	struct file *fp;
 
+#if defined(__OpenBSD__)
+	fp = fnew(p);
+#else
 	falloc(curthread->td_lwp, &fp, NULL);
+#endif
 	if (fp == NULL)
 		return ERR_PTR(-ENFILE);
-
-	dmabuf = kmalloc(sizeof(struct dma_buf), M_DRM, M_WAITOK);
 	fp->f_type = DTYPE_DMABUF;
-	fp->f_ops = &dmabuf_fileops;
-	fp->private_data = dmabuf;
-	dmabuf->priv = exp_info->priv;
-	dmabuf->ops = exp_info->ops;
-	dmabuf->size = exp_info->size;
+	fp->f_ops = &dmabufops;
+#if defined(__OpenBSD__)
+	dmabuf = malloc(sizeof(struct dma_buf), M_DRM, M_WAITOK | M_ZERO);
+#else
+	dmabuf = __kmalloc(sizeof(struct dma_buf), M_DRM, M_WAITOK | M_ZERO);
+#endif
+	dmabuf->priv = info->priv;
+	dmabuf->ops = info->ops;
+	dmabuf->size = info->size;
 	dmabuf->file = fp;
+#if defined(__OpenBSD__)
+	fp->f_data = dmabuf;
+#else
+	fp->private_data = dmabuf;
+#endif
+	INIT_LIST_HEAD(&dmabuf->attachments);
+	return dmabuf;
+}
+
+struct dma_buf *
+dma_buf_get(int fd)
+{
+#if defined(__OpenBSD__) /* drm_linux.c */
+	struct proc *p = curproc;
+	struct filedesc *fdp = p->p_fd;
+	struct file *fp;
+
+	if ((fp = fd_getfile(fdp, fd)) == NULL)
+		return ERR_PTR(-EBADF);
+
+	if (fp->f_type != DTYPE_DMABUF) {
+		FRELE(fp, p);
+		return ERR_PTR(-EINVAL);
+	}
+
+	return fp->f_data;
+#else
+	struct file *fp;
+	struct dma_buf *dmabuf;
+
+	if ((fp = holdfp(curthread, fd, -1)) == NULL)
+		return ERR_PTR(-EBADF);
+
+	if (fp->f_ops != &dmabufops) {
+		kprintf("dma_buf_get(): file->f_ops != &dmabufops\n");
+		fdrop(fp);
+		return ERR_PTR(-EBADF);
+	}
+
+	dmabuf = fp->private_data;
+	fdrop(fp);
 
 	return dmabuf;
+#endif
+}
+
+void
+dma_buf_put(struct dma_buf *dmabuf)
+{
+#if defined(__OpenBSD__) /* from drm_linux.c */
+	KASSERT(dmabuf);
+	KASSERT(dmabuf->file);
+
+	FRELE(dmabuf->file, curproc);
+#else
+	if (dmabuf == NULL)
+		return;
+
+	if (dmabuf->file == NULL)
+		return;
+
+	fdrop(dmabuf->file);
+#endif
 }
 
 int
 dma_buf_fd(struct dma_buf *dmabuf, int flags)
 {
+#if defined(__OpenBSD__)
+	struct proc *p = curproc;
+	struct filedesc *fdp = p->p_fd;
+	struct file *fp = dmabuf->file;
+	int fd, cloexec, error;
+
+	cloexec = (flags & O_CLOEXEC) ? UF_EXCLOSE : 0;
+
+	fdplock(fdp);
+restart:
+	if ((error = fdalloc(p, 0, &fd)) != 0) {
+		if (error == ENOSPC) {
+			fdexpand(p);
+			goto restart;
+		}
+		fdpunlock(fdp);
+		return -error;
+	}
+
+	fdinsert(fdp, fd, cloexec, fp);
+	fdpunlock(fdp);
+
+	return fd;
+#else
 	int fd, error;
 
 	if (dmabuf == NULL)
@@ -112,27 +208,42 @@ dma_buf_fd(struct dma_buf *dmabuf, int flags)
 	fsetfd(curproc->p_fd, dmabuf->file, fd);
 
 	return fd;
+#endif
 }
 
-struct dma_buf *
-dma_buf_get(int fd)
+void
+get_dma_buf(struct dma_buf *dmabuf)
 {
-	struct file *fp;
-	struct dma_buf *dmabuf;
+#if defined (__OpenBSD__) /* from dma_linux.c */
+	FREF(dmabuf->file);
+#else
+	fhold(dmabuf->file);
+#endif
+}
 
-	if ((fp = holdfp(curthread, fd, -1)) == NULL)
-		return ERR_PTR(-EBADF);
+struct dma_buf_attachment *
+dma_buf_attach(struct dma_buf *buf, struct device *dev)
+{
+#if defined(__OpenBSD__)
+	return NULL;
+#else
+	/* XXX: this function is a stub */
+	struct dma_buf_attachment *attach;
 
-	if (fp->f_ops != &dmabuf_fileops) {
-		kprintf("dma_buf_get(): file->f_ops != &dmabuf_fileops\n");
-		fdrop(fp);
-		return ERR_PTR(-EBADF);
-	}
+	attach = __kmalloc(sizeof(struct dma_buf_attachment), M_DRM, M_WAITOK | M_ZERO);
 
-	dmabuf = fp->private_data;
-	fdrop(fp);
+	return attach;
+#endif
+}
 
-	return dmabuf;
+void
+dma_buf_detach(struct dma_buf *buf, struct dma_buf_attachment *dba)
+{
+#if defined(__OpenBSD__)
+	panic("dma_buf_detach");
+#else
+	kprintf("dma_buf_detach: Not implemented\n");
+#endif
 }
 
 struct sg_table *
@@ -159,4 +270,3 @@ void dma_buf_unmap_attachment(struct dma_buf_attachment *attach,
 				enum dma_data_direction direction)
 {
 }
-
