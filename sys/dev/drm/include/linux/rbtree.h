@@ -29,12 +29,14 @@
 #ifndef	_LINUX_RBTREE_H_
 #define	_LINUX_RBTREE_H_
 
+#if 0
 #include <linux/kernel.h>
-#include <linux/stddef.h>
 #include <linux/rcupdate.h>
+#endif
 
 #include <sys/tree.h>
-#include <sys/spinlock.h>
+
+#include <linux/stddef.h>
 
 struct rb_node {
 	RB_ENTRY(rb_node)	__entry;
@@ -84,7 +86,11 @@ RB_PROTOTYPE(linux_root, rb_node, __entry, panic_cmp);
 #define	rb_entry_safe(ptr, type, member) \
 	(ptr ? rb_entry(ptr, type, member) : NULL)
 
+#if defined(__OpenBSD__)
+#define RB_EMPTY_ROOT(root)	((root)->rb_node == NULL)
+#else
 #define RB_EMPTY_ROOT(root)     RB_EMPTY((struct linux_root *)root)
+#endif
 #define RB_EMPTY_NODE(node)     (rb_parent(node) == node)
 #define RB_CLEAR_NODE(node)     (rb_set_parent(node, node))
 
@@ -102,6 +108,10 @@ RB_PROTOTYPE(linux_root, rb_node, __entry, panic_cmp);
 #define	rb_erase_cached(node, root)						\
 	linux_root_RB_REMOVE((struct linux_root *)(&(root)->rb_root), (node))
 #define	rb_first_cached(root)	RB_MIN(linux_root, (struct linux_root *)(&(root)->rb_root))
+#if defined(__OpenBSD__) || defined(__DragonFly__) /* not sure */
+#define	rb_replace_node_cached(old, new, root)				\
+	rb_replace_node(old, new, &(root)->rb_root)
+#endif
 
 static inline struct rb_node *
 __rb_deepest_left(struct rb_node *node)
@@ -168,8 +178,22 @@ rb_replace_node(struct rb_node *victim, struct rb_node *new,
 	*new = *victim;
 }
 
+#if defined(__OpenBSD__)
+
+#undef RB_ROOT
+#define RB_ROOT		(struct rb_root) { NULL }
+#ifdef __clang__
+#define RB_ROOT_CACHED	(struct rb_root_cached) { NULL }
+#else
+#define RB_ROOT_CACHED	(struct rb_root_cached) { { NULL } }
+#endif
+
+#else
+
 #define LINUX_RB_ROOT		(struct rb_root) { NULL }
 
 #define LINUX_RB_ROOT_CACHED (struct rb_root_cached) { {NULL, }, NULL }
+
+#endif
 
 #endif	/* _LINUX_RBTREE_H_ */

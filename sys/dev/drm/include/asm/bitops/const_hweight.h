@@ -27,11 +27,13 @@
 #ifndef _ASM_BITOPS_CONST_HWEIGHT_H_
 #define _ASM_BITOPS_CONST_HWEIGHT_H_
 
+#if 0
 #include <sys/systm.h>
 
 #define hweight8(x)	bitcount16((x) & 0xff)
 #define hweight16(x)	bitcount16(x)
 #define hweight32(x)	bitcount32(x)
 #define hweight64(x)	bitcount64(x)
+#endif
 
 #endif	/* _ASM_BITOPS_CONST_HWEIGHT_H_ */

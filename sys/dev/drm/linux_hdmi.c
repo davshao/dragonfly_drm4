@@ -21,6 +21,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#if 0
+
 #include <linux/bitops.h>
 #include <linux/bug.h>
 #include <linux/errno.h>
@@ -53,18 +55,14 @@ static void hdmi_infoframe_set_checksum(void *buffer, size_t size)
 /**
  * hdmi_avi_infoframe_init() - initialize an HDMI AVI infoframe
  * @frame: HDMI AVI infoframe
- *
- * Returns 0 on success or a negative error code on failure.
  */
-int hdmi_avi_infoframe_init(struct hdmi_avi_infoframe *frame)
+void hdmi_avi_infoframe_init(struct hdmi_avi_infoframe *frame)
 {
 	memset(frame, 0, sizeof(*frame));
 
 	frame->type = HDMI_INFOFRAME_TYPE_AVI;
 	frame->version = 2;
 	frame->length = HDMI_AVI_INFOFRAME_SIZE;
-
-	return 0;
 }
 EXPORT_SYMBOL(hdmi_avi_infoframe_init);
 
@@ -457,13 +455,15 @@ static const char *hdmi_infoframe_type_get_name(enum hdmi_infoframe_type type)
 		return "Source Product Description (SPD)";
 	case HDMI_INFOFRAME_TYPE_AUDIO:
 		return "Audio";
+	case HDMI_INFOFRAME_TYPE_DRM:
+		return "Dynamic Range and Mastering";
 	}
 	return "Reserved";
 }
 
 static void hdmi_infoframe_log_header(const char *level,
 				      struct device *dev,
-				      struct hdmi_any_infoframe *frame)
+				      const struct hdmi_any_infoframe *frame)
 {
 	hdmi_log("HDMI infoframe: %s, version %u, length %u\n",
 		hdmi_infoframe_type_get_name(frame->type),
@@ -584,10 +584,10 @@ hdmi_extended_colorimetry_get_name(enum hdmi_extended_colorimetry ext_col)
 		return "xvYCC 709";
 	case HDMI_EXTENDED_COLORIMETRY_S_YCC_601:
 		return "sYCC 601";
-	case HDMI_EXTENDED_COLORIMETRY_ADOBE_YCC_601:
-		return "Adobe YCC 601";
-	case HDMI_EXTENDED_COLORIMETRY_ADOBE_RGB:
-		return "Adobe RGB";
+	case HDMI_EXTENDED_COLORIMETRY_OPYCC_601:
+		return "opYCC 601";
+	case HDMI_EXTENDED_COLORIMETRY_OPRGB:
+		return "opRGB";
 	case HDMI_EXTENDED_COLORIMETRY_BT2020_CONST_LUM:
 		return "BT.2020 Constant Luminance";
 	case HDMI_EXTENDED_COLORIMETRY_BT2020:
@@ -668,7 +668,7 @@ static void hdmi_avi_infoframe_log(const char *level,
 				   struct hdmi_avi_infoframe *frame)
 {
 	hdmi_infoframe_log_header(level, dev,
-				  (struct hdmi_any_infoframe *)frame);
+				  (const struct hdmi_any_infoframe *)frame);
 
 	hdmi_log("    colorspace: %s\n",
 			hdmi_colorspace_get_name(frame->colorspace));
@@ -747,7 +747,7 @@ static void hdmi_spd_infoframe_log(const char *level,
 	u8 buf[17];
 
 	hdmi_infoframe_log_header(level, dev,
-				  (struct hdmi_any_infoframe *)frame);
+				  (const struct hdmi_any_infoframe *)frame);
 
 	memset(buf, 0, sizeof(buf));
 
@@ -881,7 +881,7 @@ static void hdmi_audio_infoframe_log(const char *level,
 				     struct hdmi_audio_infoframe *frame)
 {
 	hdmi_infoframe_log_header(level, dev,
-				  (struct hdmi_any_infoframe *)frame);
+				  (const struct hdmi_any_infoframe *)frame);
 
 	if (frame->channels)
 		hdmi_log("    channels: %u\n", frame->channels - 1);
@@ -901,6 +901,34 @@ static void hdmi_audio_infoframe_log(const char *level,
 			frame->level_shift_value);
 	hdmi_log("    downmix inhibit: %s\n",
 			frame->downmix_inhibit ? "Yes" : "No");
+}
+
+static void hdmi_drm_infoframe_log(const char *level,
+				   struct device *dev,
+				   const struct hdmi_drm_infoframe *frame)
+{
+	int i;
+
+	hdmi_infoframe_log_header(level, dev,
+				  (struct hdmi_any_infoframe *)frame);
+	hdmi_log("length: %d\n", frame->length);
+	hdmi_log("metadata type: %d\n", frame->metadata_type);
+	hdmi_log("eotf: %d\n", frame->eotf);
+	for (i = 0; i < 3; i++) {
+		hdmi_log("x[%d]: %d\n", i, frame->display_primaries[i].x);
+		hdmi_log("y[%d]: %d\n", i, frame->display_primaries[i].y);
+	}
+
+	hdmi_log("white point x: %d\n", frame->white_point.x);
+	hdmi_log("white point y: %d\n", frame->white_point.y);
+
+	hdmi_log("max_display_mastering_luminance: %d\n",
+		 frame->max_display_mastering_luminance);
+	hdmi_log("min_display_mastering_luminance: %d\n",
+		 frame->min_display_mastering_luminance);
+
+	hdmi_log("max_cll: %d\n", frame->max_cll);
+	hdmi_log("max_fall: %d\n", frame->max_fall);
 }
 
 static const char *
@@ -946,7 +974,7 @@ hdmi_vendor_any_infoframe_log(const char *level,
 	struct hdmi_vendor_infoframe *hvf = &frame->hdmi;
 
 	hdmi_infoframe_log_header(level, dev,
-				  (struct hdmi_any_infoframe *)frame);
+				  (const struct hdmi_any_infoframe *)frame);
 
 	if (frame->any.oui != HDMI_IEEE_OUI) {
 		hdmi_log("    not a HDMI vendor infoframe\n");
@@ -976,7 +1004,7 @@ hdmi_vendor_any_infoframe_log(const char *level,
  */
 void hdmi_infoframe_log(const char *level,
 			struct device *dev,
-			union hdmi_infoframe *frame)
+			const union hdmi_infoframe *frame)
 {
 	switch (frame->any.type) {
 	case HDMI_INFOFRAME_TYPE_AVI:
@@ -990,6 +1018,9 @@ void hdmi_infoframe_log(const char *level,
 		break;
 	case HDMI_INFOFRAME_TYPE_VENDOR:
 		hdmi_vendor_any_infoframe_log(level, dev, &frame->vendor);
+		break;
+	case HDMI_INFOFRAME_TYPE_DRM:
+		hdmi_drm_infoframe_log(level, dev, &frame->drm);
 		break;
 	}
 }
@@ -1011,7 +1042,6 @@ static int hdmi_avi_infoframe_unpack(struct hdmi_avi_infoframe *frame,
 				     void *buffer)
 {
 	u8 *ptr = buffer;
-	int ret;
 
 	if (ptr[0] != HDMI_INFOFRAME_TYPE_AVI ||
 	    ptr[1] != 2 ||
@@ -1021,9 +1051,7 @@ static int hdmi_avi_infoframe_unpack(struct hdmi_avi_infoframe *frame,
 	if (hdmi_infoframe_checksum(buffer, HDMI_INFOFRAME_SIZE(AVI)) != 0)
 		return -EINVAL;
 
-	ret = hdmi_avi_infoframe_init(frame);
-	if (ret)
-		return ret;
+	hdmi_avi_infoframe_init(frame);
 
 	ptr += HDMI_INFOFRAME_HEADER_SIZE;
 
@@ -1212,6 +1240,7 @@ hdmi_vendor_any_infoframe_unpack(union hdmi_vendor_any_infoframe *frame,
  * hdmi_infoframe_unpack() - unpack binary buffer to a HDMI infoframe
  * @buffer: source buffer
  * @frame: HDMI infoframe
+ * @size: size of buffer
  *
  * Unpacks the information contained in binary buffer @buffer into a structured
  * @frame of a HDMI infoframe.
@@ -1220,10 +1249,14 @@ hdmi_vendor_any_infoframe_unpack(union hdmi_vendor_any_infoframe *frame,
  *
  * Returns 0 on success or a negative error code on failure.
  */
-int hdmi_infoframe_unpack(union hdmi_infoframe *frame, void *buffer)
+int hdmi_infoframe_unpack(union hdmi_infoframe *frame,
+			  const void *buffer, size_t size)
 {
 	int ret;
-	u8 *ptr = buffer;
+	const u8 *ptr = buffer;
+
+	if (size < HDMI_INFOFRAME_HEADER_SIZE)
+		return -EINVAL;
 
 	switch (ptr[0]) {
 	case HDMI_INFOFRAME_TYPE_AVI:
@@ -1246,3 +1279,5 @@ int hdmi_infoframe_unpack(union hdmi_infoframe *frame, void *buffer)
 	return ret;
 }
 EXPORT_SYMBOL(hdmi_infoframe_unpack);
+
+#endif

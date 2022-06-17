@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,11 +26,11 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _ASM_BITSPERLONG_H_
-#define _ASM_BITSPERLONG_H_
+#ifndef _ASM_BITSPERLONG_H
+#define _ASM_BITSPERLONG_H
 
 #define BITS_PER_LONG 64
 
 #define BITS_PER_LONG_LONG 64
 
-#endif	/* _ASM_BITSPERLONG_H_ */
+#endif

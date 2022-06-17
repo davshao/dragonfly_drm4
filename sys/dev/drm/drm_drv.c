@@ -35,11 +35,13 @@
 
 #include <drm/drm_drv.h>
 #include <drm/drmP.h>
+#include <drm/drm_print.h>
 
 #include "drm_crtc_internal.h"
 #include "drm_legacy.h"
 #include "drm_internal.h"
 
+#if 0
 /*
  * drm_debug: Enable debug output.
  * Bitmask of DRM_UT_x. See include/drm/drmP.h for details.
@@ -73,6 +75,7 @@ MODULE_PARM_DESC(debug, "Enable debug output, where each bit enables a debug cat
 "\t\tBit 5 (0x20) will enable VBL messages (vblank code)\n"
 "\t\tBit 7 (0x80) will enable LEASE messages (leasing code)");
 module_param_named(debug, drm_debug, int, 0600);
+#endif
 
 static DEFINE_MUTEX(drm_minor_lock);
 static struct idr drm_minors_idr;
@@ -90,6 +93,7 @@ static bool drm_core_init_complete = false;
 static struct dentry *drm_debugfs_root;
 #endif
 
+#if 0
 void drm_err(const char *func, const char *format, ...)
 {
 	va_list args;
@@ -116,7 +120,9 @@ void drm_ut_debug_printk(const char *function_name, const char *format, ...)
 	kvprintf(format, args);
 	va_end(args);
 }
+#endif
 
+#if 0
 #define DRM_PRINTK_FMT "[" DRM_NAME ":%s]%s %pV"
 #define DRM_PRINTK_FMT_DFLY "[" DRM_NAME ":%s]%s "
 
@@ -183,6 +189,7 @@ void drm_printk(const char *level, unsigned int category,
 	va_end(args);
 }
 EXPORT_SYMBOL(drm_printk);
+#endif
 
 /*
  * DRM Minors
@@ -1301,81 +1308,3 @@ drm_mmap_single(struct dev_mmap_single_args *ap)
 }
 
 #include <linux/dmi.h>
-
-/*
- * Check if dmi_system_id structure matches system DMI data
- */
-static bool
-dmi_found(const struct dmi_system_id *dsi)
-{
-	int i, slot;
-	bool found = false;
-	char *sys_vendor, *board_vendor, *product_name, *board_name;
-
-	sys_vendor = kgetenv("smbios.system.maker");
-	board_vendor = kgetenv("smbios.planar.maker");
-	product_name = kgetenv("smbios.system.product");
-	board_name = kgetenv("smbios.planar.product");
-
-	for (i = 0; i < NELEM(dsi->matches); i++) {
-		slot = dsi->matches[i].slot;
-		switch (slot) {
-		case DMI_NONE:
-			break;
-		case DMI_SYS_VENDOR:
-			if (sys_vendor != NULL &&
-			    !strcmp(sys_vendor, dsi->matches[i].substr))
-				break;
-			else
-				goto done;
-		case DMI_BOARD_VENDOR:
-			if (board_vendor != NULL &&
-			    !strcmp(board_vendor, dsi->matches[i].substr))
-				break;
-			else
-				goto done;
-		case DMI_PRODUCT_NAME:
-			if (product_name != NULL &&
-			    !strcmp(product_name, dsi->matches[i].substr))
-				break;
-			else
-				goto done;
-		case DMI_BOARD_NAME:
-			if (board_name != NULL &&
-			    !strcmp(board_name, dsi->matches[i].substr))
-				break;
-			else
-				goto done;
-		default:
-			goto done;
-		}
-	}
-	found = true;
-
-done:
-	if (sys_vendor != NULL)
-		kfreeenv(sys_vendor);
-	if (board_vendor != NULL)
-		kfreeenv(board_vendor);
-	if (product_name != NULL)
-		kfreeenv(product_name);
-	if (board_name != NULL)
-		kfreeenv(board_name);
-
-	return found;
-}
-
-int dmi_check_system(const struct dmi_system_id *sysid)
-{
-	const struct dmi_system_id *dsi;
-	int num = 0;
-
-	for (dsi = sysid; dsi->matches[0].slot != 0 ; dsi++) {
-		if (dmi_found(dsi)) {
-			num++;
-			if (dsi->callback && dsi->callback(dsi))
-				break;
-		}
-	}
-	return (num);
-}

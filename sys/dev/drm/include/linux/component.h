@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2017 François Tigeot
  * All rights reserved.
@@ -24,8 +26,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_COMPONENT_H_
-#define _LINUX_COMPONENT_H_
+#ifndef _LINUX_COMPONENT_H
+#define _LINUX_COMPONENT_H
 
 struct device;
 
@@ -36,4 +38,7 @@ struct component_ops {
 		       void *master_data);
 };
 
-#endif	/* _LINUX_COMPONENT_H_ */
+#define component_del(a, b)
+#define component_add(a, b)	0
+
+#endif

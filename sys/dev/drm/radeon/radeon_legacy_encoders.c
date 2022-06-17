@@ -25,6 +25,9 @@
  */
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
+#include <drm/drm_util.h>
 #include <drm/radeon_drm.h>
 #include "radeon.h"
 #include "radeon_asic.h"

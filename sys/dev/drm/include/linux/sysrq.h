@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2017 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,10 +26,25 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_SYSRQ_H_
-#define _LINUX_SYSRQ_H_
+#ifndef _LINUX_SYSRQ_H
+#define _LINUX_SYSRQ_H
 
-#include <linux/errno.h>
-#include <linux/types.h>
+// #include <linux/errno.h>
+// #include <linux/types.h>
 
-#endif	/* _LINUX_SYSRQ_H_ */
+struct sysrq_key_op {
+};
+
+static inline int
+register_sysrq_key(int k, const struct sysrq_key_op *op)
+{
+	return 0;
+}
+
+static inline int
+unregister_sysrq_key(int k, const struct sysrq_key_op *op)
+{
+	return 0;
+}
+
+#endif
