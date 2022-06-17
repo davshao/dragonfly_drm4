@@ -27,7 +27,9 @@
 #ifndef _LINUX_MFD_CORE_H_
 #define _LINUX_MFD_CORE_H_
 
+#if 0
 #include <linux/platform_device.h>
+#endif
 
 #endif	/* _LINUX_MFD_CORE_H_ */
 

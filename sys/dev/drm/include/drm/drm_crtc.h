@@ -196,6 +196,34 @@ struct drm_crtc_state {
 	u32 target_vblank;
 
 	/**
+	 * @async_flip:
+	 *
+	 * This is set when DRM_MODE_PAGE_FLIP_ASYNC is set in the legacy
+	 * PAGE_FLIP IOCTL. It's not wired up for the atomic IOCTL itself yet.
+	 */
+	bool async_flip;
+
+	/**
+	 * @vrr_enabled:
+	 *
+	 * Indicates if variable refresh rate should be enabled for the CRTC.
+	 * Support for the requested vrr state will depend on driver and
+	 * hardware capabiltiy - lacking support is not treated as failure.
+	 */
+	bool vrr_enabled;
+
+	/**
+	 * @self_refresh_active:
+	 *
+	 * Used by the self refresh helpers to denote when a self refresh
+	 * transition is occurring. This will be set on enable/disable callbacks
+	 * when self refresh is being enabled or disabled. In some cases, it may
+	 * not be desirable to fully shut off the crtc during self refresh.
+	 * CRTC's can inspect this flag and determine the best course of action.
+	 */
+	bool self_refresh_active;
+
+	/**
 	 * @pageflip_flags:
 	 *
 	 * DRM_MODE_PAGE_FLIP_* flags, as passed to the page flip ioctl.

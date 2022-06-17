@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2019 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,13 +26,23 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_DEBUGFS_H_
-#define _LINUX_DEBUGFS_H_
+#ifndef _LINUX_DEBUGFS_H
+#define _LINUX_DEBUGFS_H
 
-#include <linux/fs.h>
-#include <linux/seq_file.h>
+// #include <linux/fs.h>
+// #include <linux/seq_file.h>
 
-#include <linux/types.h>
-#include <linux/compiler.h>
+// #include <linux/types.h>
+// #include <linux/compiler.h>
 
-#endif	/* _LINUX_DEBUGFS_H_ */
+// #include <linux/err.h>
+
+struct debugfs_regset32 {
+};
+
+#define debugfs_create_atomic_t(a, b, c, d)
+#define debugfs_remove(a)
+#define debugfs_create_dir(a, b)		ERR_PTR(-ENOSYS)
+#define debugfs_create_file(a, b, c, d, e)	ERR_PTR(-ENOSYS)
+
+#endif

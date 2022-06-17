@@ -36,7 +36,7 @@
 #include <linux/workqueue.h>
 #include <linux/fs.h>
 #include <linux/spinlock.h>
-#include <linux/reservation.h>
+#include <linux/dma-resv.h>
 
 #include "ttm_bo_api.h"
 #include "ttm_memory.h"

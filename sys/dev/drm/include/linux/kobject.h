@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2016-2018 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,18 +26,20 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_KOBJECT_H_
-#define _LINUX_KOBJECT_H_
+#ifndef _LINUX_KOBJECT_H
+#define _LINUX_KOBJECT_H
 
-#include <linux/types.h>
-#include <linux/list.h>
-#include <linux/sysfs.h>
-#include <linux/compiler.h>
-#include <linux/spinlock.h>
+#include <sys/stdarg.h>
+
+// #include <linux/types.h>
+// #include <linux/list.h>
+// #include <linux/compiler.h>
+// #include <linux/spinlock.h>
 #include <linux/kref.h>
 #include <linux/kernel.h>
-#include <linux/wait.h>
-#include <linux/atomic.h>
+#include <linux/sysfs.h>
+// #include <linux/wait.h>
+// #include <linux/atomic.h>
 
 enum kobject_action {
 	KOBJ_ADD,
@@ -48,39 +52,67 @@ enum kobject_action {
 };
 
 struct kobject {
-	const char *name;
 	struct kref kref;
-	struct kobj_type *ktype;
+	struct kobj_type *type;
+	const char *name;
 };
 
 struct kobj_type {
-	void (*release)(struct kobject *kobj);
+	void (*release)(struct kobject *);
 	const struct sysfs_ops *sysfs_ops;
 	struct attribute **default_attrs;
 };
 
+struct kobj_attribute {
+};
+
+static inline void
+kobject_init(struct kobject *obj, struct kobj_type *type)
+{
+	kref_init(&obj->kref);
+	obj->type = type;
+}
+
 static inline int
-kobject_uevent_env(struct kobject *kobj, enum kobject_action action, char *envp[])
+kobject_init_and_add(struct kobject *obj, struct kobj_type *type,
+    struct kobject *parent, const char *fmt, ...)
 {
-	return 0;
+	va_list ap;
+
+	kobject_init(obj, type);
+
+	va_start(ap, fmt);
+	obj->name = kvasprintf(M_WAITOK, fmt, ap);
+	va_end(ap);
+
+	return (0);
 }
 
-extern __printf(4, 5) __must_check
-int kobject_init_and_add(struct kobject *kobj,
-			 struct kobj_type *ktype, struct kobject *parent,
-			 const char *fmt, ...);
-
-extern void kobject_release(struct kref *kref);
-
-static inline void
-kobject_put(struct kobject *kobj)
+static inline struct kobject *
+kobject_get(struct kobject *obj)
 {
-	if (kobj != NULL)
-		kref_put(&kobj->kref, kobject_release);
+	if (obj != NULL)
+		kref_get(&obj->kref);
+	return (obj);
 }
 
 static inline void
-kobject_del(struct kobject *kobj)
+kobject_release(struct kref *ref)
+{
+	struct kobject *obj = container_of(ref, struct kobject, kref);
+	if (obj->type && obj->type->release)
+		obj->type->release(obj);
+}
+
+static inline void
+kobject_put(struct kobject *obj)
+{
+	if (obj != NULL)
+		kref_put(&obj->kref, kobject_release);
+}
+
+static inline void
+kobject_del(struct kobject *obj)
 {
 	/*
 	   This function is supposed to unlink the object from a hierarchy.
@@ -89,4 +121,23 @@ kobject_del(struct kobject *kobj)
 	*/
 }
 
-#endif	/* _LINUX_KOBJECT_H_ */
+#if defined(__OpenBSD__)
+#define kobject_uevent_env(obj, act, envp)
+#else
+static inline int
+kobject_uevent_env(struct kobject *kobj, enum kobject_action action, char *envp[])
+{
+	return 0;
+}
+#endif
+
+#if 0
+extern __printf(4, 5) __must_check
+int kobject_init_and_add(struct kobject *kobj,
+			 struct kobj_type *ktype, struct kobject *parent,
+			 const char *fmt, ...);
+
+extern void kobject_release(struct kref *kref);
+#endif
+
+#endif

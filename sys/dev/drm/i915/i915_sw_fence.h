@@ -18,7 +18,7 @@
 struct completion;
 struct dma_fence;
 struct dma_fence_ops;
-struct reservation_object;
+struct dma_resv;
 
 struct i915_sw_fence {
 	wait_queue_head_t wait;
@@ -74,7 +74,7 @@ int i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
 				  unsigned long timeout,
 				  gfp_t gfp);
 int i915_sw_fence_await_reservation(struct i915_sw_fence *fence,
-				    struct reservation_object *resv,
+				    struct dma_resv *resv,
 				    const struct dma_fence_ops *exclude,
 				    bool write,
 				    unsigned long timeout,

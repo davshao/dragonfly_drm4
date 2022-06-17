@@ -177,7 +177,7 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 int radeon_bo_create(struct radeon_device *rdev,
 		     unsigned long size, int byte_align, bool kernel,
 		     u32 domain, u32 flags, struct sg_table *sg,
-		     struct reservation_object *resv,
+		     struct dma_resv *resv,
 		     struct radeon_bo **bo_ptr)
 {
 	struct radeon_bo *bo;
@@ -868,10 +868,10 @@ int radeon_bo_wait(struct radeon_bo *bo, u32 *mem_type, bool no_wait)
 void radeon_bo_fence(struct radeon_bo *bo, struct radeon_fence *fence,
 		     bool shared)
 {
-	struct reservation_object *resv = bo->tbo.resv;
+	struct dma_resv *resv = bo->tbo.resv;
 
 	if (shared)
-		reservation_object_add_shared_fence(resv, &fence->base);
+		dma_resv_add_shared_fence(resv, &fence->base);
 	else
-		reservation_object_add_excl_fence(resv, &fence->base);
+		dma_resv_add_excl_fence(resv, &fence->base);
 }
