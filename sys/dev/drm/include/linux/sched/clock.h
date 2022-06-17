@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,9 +26,27 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_SCHED_CLOCK_H_
-#define _LINUX_SCHED_CLOCK_H_
+#ifndef _LINUX_SCHED_CLOCK_H
+#define _LINUX_SCHED_CLOCK_H
 
+#include <sys/types.h>
+
+#include <linux/time.h>
 #include <linux/smp.h>
 
-#endif	/* _LINUX_SCHED_CLOCK_H_ */
+/*
+ * local_clock: fast time source, monotonic on the same cpu
+ */
+static inline uint64_t
+local_clock(void)
+{
+	struct timespec ts;
+#if defined(__OpenBSD__)
+	nanouptime(&ts);
+#else
+	getnanouptime(&ts);
+#endif
+	return (ts.tv_sec * NSEC_PER_SEC) + ts.tv_nsec;
+}
+
+#endif

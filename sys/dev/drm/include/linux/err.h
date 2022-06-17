@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*-
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
@@ -27,49 +29,58 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef	_LINUX_ERR_H_
-#define	_LINUX_ERR_H_
+#ifndef _LINUX_ERR_H
+#define _LINUX_ERR_H
 
+#include <sys/errno.h>
+#include <linux/compiler.h>
+
+#if defined(__OpenBSD__)
+#define IS_ERR_VALUE(x) unlikely((x) >= (unsigned long)-ELAST)
+#else
 #define MAX_ERRNO	4095
 
 #define IS_ERR_VALUE(x) ((x) >= (unsigned long)-MAX_ERRNO)
+#endif
 
 static inline void *
 ERR_PTR(long error)
 {
-	return (void *)error;
+	return (void *) error;
 }
 
 static inline long
 PTR_ERR(const void *ptr)
 {
-	return (long)ptr;
+	return (long) ptr;
 }
 
-static inline long
+static inline bool
 IS_ERR(const void *ptr)
 {
 	return IS_ERR_VALUE((unsigned long)ptr);
 }
 
-static inline long
+static inline bool 
 IS_ERR_OR_NULL(const void *ptr)
 {
 	return !ptr || IS_ERR_VALUE((unsigned long)ptr);
 }
 
 static inline void *
+#if defined(__OpenBSD__)
+ERR_CAST(const void *ptr)
+#else
 ERR_CAST(void *ptr)
+#endif
 {
 	return (void *)ptr;
 }
 
-static inline int PTR_ERR_OR_ZERO( const void *ptr)
+static inline int
+PTR_ERR_OR_ZERO(const void *ptr)
 {
-	if (IS_ERR(ptr))
-		return PTR_ERR(ptr);
-
-	return 0;
+	return IS_ERR(ptr)? PTR_ERR(ptr) : 0;
 }
 
-#endif	/* _LINUX_ERR_H_ */
+#endif

@@ -27,10 +27,13 @@
 #ifndef _ASM_PAGE_H_
 #define _ASM_PAGE_H_
 
+#if 0
 struct page;
 
 #include <vm/vm_page.h>
+#endif
 
+#if 0
 static inline vm_paddr_t
 page_to_phys(struct page *page)
 {
@@ -38,19 +41,46 @@ page_to_phys(struct page *page)
 
 	return VM_PAGE_TO_PHYS(p);
 }
+#endif
 
-#define LINUX_PAGE_MASK	(~PAGE_MASK)
+// #define LINUX_PAGE_MASK	(~PAGE_MASK)
 
+#if 0
 static inline struct page *
 virt_to_page(void *kaddr)
 {
 	return (struct page *)PHYS_TO_VM_PAGE(vtophys(kaddr));
 }
+#endif
 
-#include <asm/memory_model.h>
+// #include <asm/memory_model.h>
 
-typedef unsigned long pgprot_t;
+#if 0
+#include <vm/vm_object.h>
+#endif
 
+#if 0
+static inline unsigned long
+page_to_pfn(struct page *page)
+{
+	struct vm_page *p = (struct vm_page *)page;
+
+	return OFF_TO_IDX(VM_PAGE_TO_PHYS(p));
+}
+#endif
+
+#if 0
+static inline struct page *
+pfn_to_page(unsigned long pfn)
+{
+	return (struct page *)PHYS_TO_VM_PAGE(pfn << PAGE_SHIFT);
+}
+#endif
+
+// typedef unsigned long pgprot_t;
+
+#if 0
 #define virt_to_page(kaddr)	(struct page *)PHYS_TO_VM_PAGE(vtophys(kaddr))
+#endif
 
 #endif	/* _ASM_PAGE_H_ */

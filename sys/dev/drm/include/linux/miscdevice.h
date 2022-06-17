@@ -27,7 +27,9 @@
 #ifndef _LINUX_MISCDEVICE_H_
 #define _LINUX_MISCDEVICE_H_
 
+#if 0
 #include <linux/list.h>
 #include <linux/types.h>
+#endif
 
 #endif	/* _LINUX_MISCDEVICE_H_ */

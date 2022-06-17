@@ -35,6 +35,9 @@
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 
+#include <linux/mm.h>
+#include <linux/fs.h>
+
 #include <linux/err.h>
 #include <linux/shmem_fs.h>
 
