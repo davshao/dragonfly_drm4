@@ -129,6 +129,7 @@ struct file {
 #define DTYPE_CRYPTO	6	/* crypto */
 #define DTYPE_MQUEUE	7	/* message queue */
 #define DTYPE_DMABUF	8	/* DRM DMA buffer */
+#define DTYPE_SYNC	9	/* DRM sync file */
 
 LIST_HEAD(filelist, file);
 

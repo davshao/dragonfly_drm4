@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -27,11 +29,36 @@
 #ifndef _LINUX_IOPORT_H
 #define _LINUX_IOPORT_H
 
-#include <linux/compiler.h>
+#include <sys/types.h>
+#include <sys/rman.h>
+// #include <linux/compiler.h>
 #include <linux/types.h>
+
+#if defined(__OpenBSD__)
+struct resource {
+	u_long	start;
+	u_long	end;
+};
+#endif
+
+static inline resource_size_t
+resource_size(const struct resource *r)
+{
+#if defined(__OpenBSD__)
+	return r->end - r->start + 1;
+#else
+	return r->r_end - r->r_start + 1;
+#endif
+}
+
+#define DEFINE_RES_MEM(_start, _size)		\
+	{					\
+		.start = (_start),		\
+		.end = (_start) + (_size) - 1,	\
+	}
 
 #define IORESOURCE_IO	0x00000100
 #define IORESOURCE_MEM	0x00000200
 #define IORESOURCE_UNSET        0x20000000      /* No address assigned yet */
 
-#endif	/* _LINUX_IOPORT_H */
+#endif

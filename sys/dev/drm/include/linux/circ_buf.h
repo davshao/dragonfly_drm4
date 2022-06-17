@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2016 Rimvydas Jasinskas
  * All rights reserved.
@@ -27,6 +29,12 @@
 #ifndef _LINUX_CIRC_BUF_H
 #define _LINUX_CIRC_BUF_H
 
+#if defined(__OpenBSD__)
+
+#define CIRC_SPACE(h,t,s)	(((t) - ((h)+1)) & ((s)-1))
+
+#else
+
 struct circ_buf {
 	char *buf;
 	int head;
@@ -55,4 +63,6 @@ struct circ_buf {
 	  int n = (end + (tail)) & ((size)-1); \
 	  n <= end ? n : end+1;})
 
-#endif	/* _LINUX_CIRC_BUF_H */
+#endif
+
+#endif

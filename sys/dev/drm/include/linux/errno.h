@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2014-2019 François Tigeot
  * All rights reserved.
@@ -24,18 +26,43 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_ERRNO_H_
-#define _LINUX_ERRNO_H_
+#ifndef _LINUX_ERRNO_H
+#define _LINUX_ERRNO_H
 
+#include <sys/errno.h>
+
+#if defined(__OpenBSD__)
+#define ERESTARTSYS	EINTR
+#else
 #if defined(_KERNEL)
 #define ERESTARTSYS	512	/* Restart syscall. MUST be positive. */
 #define EPROBE_DEFER	517
 #endif
+#endif
 
-#define ECHRNG		EDOM
-#define ENOTSUPP	EOPNOTSUPP
 #define ETIME		ETIMEDOUT
-#define ENODATA		ECONNREFUSED
 #define EREMOTEIO	EIO
 
-#endif	/* _LINUX_ERRNO_H_ */
+#if defined(__OpenBSD__)
+#define ENOTSUPP	ENOTSUP
+#define ENODATA		ENOTSUP
+#define ECHRNG		EINVAL
+#else
+#define ENOTSUPP	EOPNOTSUPP
+#define ENODATA		ECONNREFUSED
+#define ECHRNG		EDOM
+#endif
+
+#define EHWPOISON	EIO
+#define ENOPKG		ENOENT
+
+#if defined(__OpenBSD__)
+#define EMULTIHOP	EIPSEC
+#else
+/* EMULTIHOP already defined in sys/errno.h */
+#endif
+
+#define EBADSLT		EINVAL
+#define ENOKEY		ENOENT
+
+#endif
