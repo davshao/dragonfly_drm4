@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2018-2019 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,8 +26,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _ASM_CURRENT_H_
-#define _ASM_CURRENT_H_
+#ifndef _ASM_CURRENT_H
+#define _ASM_CURRENT_H
+
+#include <machine/thread.h>
 
 struct task_struct;
 struct mm_struct;
@@ -37,11 +41,15 @@ void linux_task_drop(struct thread *td);
 void linux_proc_drop(struct proc *p);
 void linux_mm_drop(struct mm_struct *mm);
 
+#if defined(__OpenBSD__)
+#define current curproc
+#else
 #define current	({						\
 	struct task_struct *__task;				\
 								\
 	if ((__task = curthread->td_linux_task) == NULL)	\
 		__task = linux_task_alloc(curthread);		\
 	__task; })
+#endif
 
-#endif	/* _ASM_CURRENT_H_ */
+#endif

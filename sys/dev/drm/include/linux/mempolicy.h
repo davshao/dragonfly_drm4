@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,13 +26,15 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_MEMPOLICY_H_
-#define _LINUX_MEMPOLICY_H_
+#ifndef _LINUX_MEMPOLICY_H
+#define _LINUX_MEMPOLICY_H
 
+#if 0
 #include <linux/mmzone.h>
 #include <linux/slab.h>
 #include <linux/rbtree.h>
 #include <linux/spinlock.h>
+#endif
 #include <linux/pagemap.h>
 
-#endif	/* _LINUX_MEMPOLICY_H_ */
+#endif

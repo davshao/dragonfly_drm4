@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2017-2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,12 +26,12 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_INIT_H_
-#define _LINUX_INIT_H_
+#ifndef _LINUX_INIT_H
+#define _LINUX_INIT_H
 
-#include <linux/compiler.h>
-#include <linux/types.h>
+// #include <linux/compiler.h>
+// #include <linux/types.h>
 
 #define __initconst
 
-#endif	/* _LINUX_INIT_H_ */
+#endif

@@ -27,6 +27,8 @@
 #ifndef _ASM_SWIOTLB_H
 #define _ASM_SWIOTLB_H
 
+#if 0
 #include <linux/swiotlb.h>
+#endif
 
 #endif /* _ASM_SWIOTLB_H */
