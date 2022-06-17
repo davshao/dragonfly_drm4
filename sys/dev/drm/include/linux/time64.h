@@ -27,8 +27,12 @@
 #ifndef _LINUX_TIME64_H_
 #define _LINUX_TIME64_H_
 
+#if 0
+
 #include <linux/math64.h>
 
 #define timespec64	timespec
+
+#endif
 
 #endif	/* _LINUX_TIME64_H_ */

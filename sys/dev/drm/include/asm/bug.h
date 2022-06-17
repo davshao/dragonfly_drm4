@@ -27,6 +27,7 @@
 #ifndef _ASM_BUG_H_
 #define _ASM_BUG_H_
 
+#if 0
 #include <sys/param.h>
 #include <linux/kernel.h>
 
@@ -80,5 +81,6 @@
 })
 
 #define WARN_ON_SMP(condition)	WARN_ON(condition)
+#endif
 
 #endif /* _ASM_BUG_H_ */

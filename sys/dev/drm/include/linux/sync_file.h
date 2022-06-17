@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,18 +26,24 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_SYNC_FILE_H_
-#define _LINUX_SYNC_FILE_H_
+#ifndef _LINUX_SYNC_FILE_H
+#define _LINUX_SYNC_FILE_H
 
+#if 0
 #include <linux/types.h>
 #include <linux/kref.h>
 #include <linux/ktime.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
+#endif
+
 #include <linux/dma-fence.h>
+#include <linux/dma-fence-array.h>
+#include <linux/ktime.h>
 
 struct sync_file {
 	struct file	*file;
+	struct dma_fence *fence;
 };
 
 static inline struct dma_fence *
@@ -52,4 +60,4 @@ sync_file_create(struct dma_fence *fence)
 	return NULL;
 }
 
-#endif	/* _LINUX_SYNC_FILE_H_ */
+#endif

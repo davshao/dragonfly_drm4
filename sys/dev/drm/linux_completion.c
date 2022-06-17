@@ -24,6 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#if 0
 #include <linux/sched.h>
 #include <linux/completion.h>
 
@@ -44,3 +45,4 @@ wait_for_completion_interruptible(struct completion *c)
 
 	return 0;
 }
+#endif

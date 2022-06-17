@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2019 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,9 +26,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_OF_H_
-#define _LINUX_OF_H_
+#ifndef _LINUX_OF_H
+#define _LINUX_OF_H
 
+#if 0
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/errno.h>
@@ -35,8 +38,20 @@
 #include <linux/spinlock.h>
 #include <linux/notifier.h>
 #include <linux/list.h>
+#endif
+
+#if defined(__OpenBSD__)
+#ifdef __macppc__
+static inline int
+of_machine_is_compatible(const char *model)
+{
+	extern char *hw_prod;
+	return (strcmp(model, hw_prod) == 0);
+}
+#endif
+#endif
 
 struct device_node {
 };
 
-#endif	/* _LINUX_OF_H_ */
+#endif

@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2015-2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,29 +26,42 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_FS_H_
-#define _LINUX_FS_H_
+#ifndef _LINUX_FS_H
+#define _LINUX_FS_H
 
+#include <sys/types.h>
+
+#if defined(__OpenBSD__)
+#include <sys/fcntl.h>
+#else
+#include <sys/vnode.h>	/* for struct vnode */
+#include <vm/vm_object.h> /* for VM_OBJECT_LOCK */
+#endif
+#include <sys/file.h>
+
+#include <linux/capability.h>
+#include <linux/linkage.h>
+#include <linux/uuid.h>
+#include <linux/pid.h>
+#include <linux/radix-tree.h>
 #include <linux/wait_bit.h>
+#include <linux/err.h>
+#include <linux/sched/signal.h>	/* via percpu-rwsem.h -> rcuwait.h */
+
+#if 0
 #include <linux/cache.h>
 #include <linux/stat.h>
 #include <linux/list.h>
 #include <linux/llist.h>
-#include <linux/radix-tree.h>
 #include <linux/rbtree.h>
 #include <linux/init.h>
-#include <linux/pid.h>
 #include <linux/bug.h>
 #include <linux/mutex.h>
-#include <linux/capability.h>
 #include <linux/atomic.h>
 #include <linux/shrinker.h>
 #include <linux/lockdep.h>
 #include <linux/workqueue.h>
-#include <linux/uuid.h>
-
-#include <sys/file.h>	/* for struct file */
-#include <sys/vnode.h>	/* for struct vnode */
+#endif
 
 struct address_space;
 
@@ -55,6 +70,7 @@ struct vm_area_struct;
 
 struct inode;
 
+/* imajor used nowhere in kernel drm */
 static inline unsigned imajor(const struct inode *inode)
 {
 	const struct vnode *vp = (const void *)inode;
@@ -108,4 +124,4 @@ int pagecache_write_begin(struct vm_object *obj, struct address_space *mapping,
 int pagecache_write_end(struct vm_object *obj, struct address_space *mapping,
     loff_t pos, unsigned len, unsigned copied, struct page *page, void *fsdata);
 
-#endif	/* _LINUX_FS_H_ */
+#endif

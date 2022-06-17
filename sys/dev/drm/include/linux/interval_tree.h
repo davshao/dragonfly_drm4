@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2018 François Tigeot <ftigeot@wolfpond.org>
  * Copyright (c) 2019 Matthew Dillon <dillon@backplane.com>
@@ -25,30 +27,31 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_INTERVAL_TREE_H_
-#define _LINUX_INTERVAL_TREE_H_
+#ifndef _LINUX_INTERVAL_TREE_H
+#define _LINUX_INTERVAL_TREE_H
 
 #include <linux/rbtree.h>
 
 struct interval_tree_node {
+#if defined(__OpenBSD__)
+	struct rb_node rb;
+#else
 	struct interval_tree_node *next;
 	long	atroot;
-	unsigned long start;	/* Start of interval, inclusive */
-	unsigned long last;	/* Last location _in_ interval, inclusive */
+#endif
+/* start and last location of interval are inclusive */
+	unsigned long start;
+	unsigned long last;
 };
 
-extern void
-interval_tree_insert(struct interval_tree_node *node, struct rb_root *root);
+struct interval_tree_node *interval_tree_iter_first(struct rb_root *,
+    unsigned long, unsigned long);
 
-extern void
-interval_tree_remove(struct interval_tree_node *node, struct rb_root *root);
+void interval_tree_insert(struct interval_tree_node *, struct rb_root *);
 
-extern struct interval_tree_node *
-interval_tree_iter_first(struct rb_root *root,
-			 unsigned long start, unsigned long last);
+void interval_tree_remove(struct interval_tree_node *, struct rb_root *);
 
-extern struct interval_tree_node *
-interval_tree_iter_next(struct interval_tree_node *node,
-			unsigned long start, unsigned long last);
+struct interval_tree_node *interval_tree_iter_next(struct interval_tree_node *node,
+    unsigned long start, unsigned long last);
 
-#endif	/* _LINUX_INTERVAL_TREE_H_ */
+#endif

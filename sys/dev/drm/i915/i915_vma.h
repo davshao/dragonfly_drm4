@@ -50,7 +50,7 @@ struct i915_vma {
 	struct drm_i915_gem_object *obj;
 	struct i915_address_space *vm;
 	struct drm_i915_fence_reg *fence;
-	struct reservation_object *resv; /** Alias of obj->resv */
+	struct dma_resv *resv; /** Alias of obj->resv */
 	struct sg_table *pages;
 	void __iomem *iomap;
 	u64 size;

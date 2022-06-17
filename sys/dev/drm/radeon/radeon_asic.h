@@ -86,7 +86,7 @@ struct radeon_fence *r100_copy_blit(struct radeon_device *rdev,
 				    uint64_t src_offset,
 				    uint64_t dst_offset,
 				    unsigned num_gpu_pages,
-				    struct reservation_object *resv);
+				    struct dma_resv *resv);
 int r100_set_surface_reg(struct radeon_device *rdev, int reg,
 			 uint32_t tiling_flags, uint32_t pitch,
 			 uint32_t offset, uint32_t obj_size);
@@ -157,7 +157,7 @@ struct radeon_fence *r200_copy_dma(struct radeon_device *rdev,
 				   uint64_t src_offset,
 				   uint64_t dst_offset,
 				   unsigned num_gpu_pages,
-				   struct reservation_object *resv);
+				   struct dma_resv *resv);
 void r200_set_safe_registers(struct radeon_device *rdev);
 
 /*
@@ -349,11 +349,11 @@ int r600_dma_ring_test(struct radeon_device *rdev, struct radeon_ring *cp);
 struct radeon_fence *r600_copy_cpdma(struct radeon_device *rdev,
 				     uint64_t src_offset, uint64_t dst_offset,
 				     unsigned num_gpu_pages,
-				     struct reservation_object *resv);
+				     struct dma_resv *resv);
 struct radeon_fence *r600_copy_dma(struct radeon_device *rdev,
 				   uint64_t src_offset, uint64_t dst_offset,
 				   unsigned num_gpu_pages,
-				   struct reservation_object *resv);
+				   struct dma_resv *resv);
 void r600_hpd_init(struct radeon_device *rdev);
 void r600_hpd_fini(struct radeon_device *rdev);
 bool r600_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd);
@@ -475,7 +475,7 @@ void r700_cp_fini(struct radeon_device *rdev);
 struct radeon_fence *rv770_copy_dma(struct radeon_device *rdev,
 				    uint64_t src_offset, uint64_t dst_offset,
 				    unsigned num_gpu_pages,
-				    struct reservation_object *resv);
+				    struct dma_resv *resv);
 u32 rv770_get_xclk(struct radeon_device *rdev);
 int rv770_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk);
 int rv770_get_temp(struct radeon_device *rdev);
@@ -548,7 +548,7 @@ void evergreen_dma_ring_ib_execute(struct radeon_device *rdev,
 struct radeon_fence *evergreen_copy_dma(struct radeon_device *rdev,
 					uint64_t src_offset, uint64_t dst_offset,
 					unsigned num_gpu_pages,
-					struct reservation_object *resv);
+					struct dma_resv *resv);
 u32 evergreen_gpu_check_soft_reset(struct radeon_device *rdev);
 void evergreen_gpu_pci_config_reset(struct radeon_device *rdev);
 void evergreen_pcie_gen2_enable(struct radeon_device *rdev);
@@ -749,7 +749,7 @@ int si_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib);
 struct radeon_fence *si_copy_dma(struct radeon_device *rdev,
 				 uint64_t src_offset, uint64_t dst_offset,
 				 unsigned num_gpu_pages,
-				 struct reservation_object *resv);
+				 struct dma_resv *resv);
 
 u8 si_get_mclk_frequency_ratio(u32 memory_clock, bool strobe_mode);
 u8 si_get_ddr3_mclk_frequency_ratio(u32 memory_clock);
@@ -844,11 +844,11 @@ void cik_sdma_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
 struct radeon_fence *cik_copy_dma(struct radeon_device *rdev,
 				  uint64_t src_offset, uint64_t dst_offset,
 				  unsigned num_gpu_pages,
-				  struct reservation_object *resv);
+				  struct dma_resv *resv);
 struct radeon_fence *cik_copy_cpdma(struct radeon_device *rdev,
 				    uint64_t src_offset, uint64_t dst_offset,
 				    unsigned num_gpu_pages,
-				    struct reservation_object *resv);
+				    struct dma_resv *resv);
 int cik_sdma_ring_test(struct radeon_device *rdev, struct radeon_ring *ring);
 int cik_sdma_ib_test(struct radeon_device *rdev, struct radeon_ring *ring);
 bool cik_sdma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring);

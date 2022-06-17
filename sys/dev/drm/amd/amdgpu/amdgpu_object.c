@@ -604,13 +604,13 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 
 	if ((flags & AMDGPU_GEM_CREATE_SHADOW) && amdgpu_bo_need_backup(adev)) {
 		if (!bp->resv)
-			WARN_ON(reservation_object_lock((*bo_ptr)->tbo.resv,
+			WARN_ON(dma_resv_lock((*bo_ptr)->tbo.resv,
 							NULL));
 
 		r = amdgpu_bo_create_shadow(adev, bp->size, bp->byte_align, (*bo_ptr));
 
 		if (!bp->resv)
-			reservation_object_unlock((*bo_ptr)->tbo.resv);
+			dma_resv_unlock((*bo_ptr)->tbo.resv);
 
 		if (r)
 			amdgpu_bo_unref(bo_ptr);
@@ -637,7 +637,7 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 int amdgpu_bo_backup_to_shadow(struct amdgpu_device *adev,
 			       struct amdgpu_ring *ring,
 			       struct amdgpu_bo *bo,
-			       struct reservation_object *resv,
+			       struct dma_resv *resv,
 			       struct dma_fence **fence,
 			       bool direct)
 
@@ -652,7 +652,7 @@ int amdgpu_bo_backup_to_shadow(struct amdgpu_device *adev,
 	bo_addr = amdgpu_bo_gpu_offset(bo);
 	shadow_addr = amdgpu_bo_gpu_offset(bo->shadow);
 
-	r = reservation_object_reserve_shared(bo->tbo.resv);
+	r = dma_resv_reserve_shared(bo->tbo.resv, 1);
 	if (r)
 		goto err;
 
@@ -719,7 +719,7 @@ retry:
 int amdgpu_bo_restore_from_shadow(struct amdgpu_device *adev,
 				  struct amdgpu_ring *ring,
 				  struct amdgpu_bo *bo,
-				  struct reservation_object *resv,
+				  struct dma_resv *resv,
 				  struct dma_fence **fence,
 				  bool direct)
 
@@ -734,7 +734,7 @@ int amdgpu_bo_restore_from_shadow(struct amdgpu_device *adev,
 	bo_addr = amdgpu_bo_gpu_offset(bo);
 	shadow_addr = amdgpu_bo_gpu_offset(bo->shadow);
 
-	r = reservation_object_reserve_shared(bo->tbo.resv);
+	r = dma_resv_reserve_shared(bo->tbo.resv, 1);
 	if (r)
 		goto err;
 
@@ -774,7 +774,7 @@ int amdgpu_bo_kmap(struct amdgpu_bo *bo, void **ptr)
 		return 0;
 	}
 
-	r = reservation_object_wait_timeout_rcu(bo->tbo.resv, false, false,
+	r = dma_resv_wait_timeout(bo->tbo.resv, false, false,
 						MAX_SCHEDULE_TIMEOUT);
 	if (r < 0)
 		return r;
@@ -1347,12 +1347,12 @@ int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 void amdgpu_bo_fence(struct amdgpu_bo *bo, struct dma_fence *fence,
 		     bool shared)
 {
-	struct reservation_object *resv = bo->tbo.resv;
+	struct dma_resv *resv = bo->tbo.resv;
 
 	if (shared)
-		reservation_object_add_shared_fence(resv, fence);
+		dma_resv_add_shared_fence(resv, fence);
 	else
-		reservation_object_add_excl_fence(resv, fence);
+		dma_resv_add_excl_fence(resv, fence);
 }
 
 /**

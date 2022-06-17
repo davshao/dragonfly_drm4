@@ -27,9 +27,11 @@
 #ifndef _LINUX_SWIOTLB_H_
 #define _LINUX_SWIOTLB_H_
 
+#if 0
 #include <linux/dma-direction.h>
 #include <linux/init.h>
 #include <linux/types.h>
+#endif
 
 static inline unsigned int
 swiotlb_max_segment(void)

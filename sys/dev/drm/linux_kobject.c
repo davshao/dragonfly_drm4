@@ -27,6 +27,7 @@
 #include <linux/gfp.h>
 #include <linux/kobject.h>
 
+#if 0
 int kobject_init_and_add(struct kobject *kobj, struct kobj_type *ktype,
 			 struct kobject *parent, const char *fmt, ...)
 {
@@ -49,3 +50,4 @@ void kobject_release(struct kref *kref)
 	if (kobj->ktype && kobj->ktype->release)
 		kobj->ktype->release(kobj);
 }
+#endif

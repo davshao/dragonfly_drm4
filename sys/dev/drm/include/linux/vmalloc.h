@@ -1,3 +1,20 @@
+/*	$OpenBSD: vmalloc.h,v 1.4 2021/07/07 02:38:36 jsg Exp $	*/
+/*
+ * Copyright (c) 2013, 2014, 2015 Mark Kettenis
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
 /*
  * Copyright (c) 2015-2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,20 +41,37 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_VMALLOC_H_
-#define _LINUX_VMALLOC_H_
+#ifndef _LINUX_VMALLOC_H
+#define _LINUX_VMALLOC_H
 
-#include <linux/spinlock.h>
-#include <linux/init.h>
-#include <linux/list.h>
-#include <linux/llist.h>
-#include <asm/page.h>		/* pgprot_t */
-#include <linux/rbtree.h>
+// #include <linux/spinlock.h>
+// #include <linux/init.h>
+// #include <linux/list.h>
+// #include <linux/llist.h>
+// #include <asm/page.h>		/* pgprot_t */
+// #include <linux/rbtree.h>
 
-void *vmap(struct page **pages, unsigned int count,
-	   unsigned long flags, pgprot_t prot);
+#if defined(__OpenBSD__)
+#include <sys/types.h>
+#include <sys/malloc.h>
+#include <uvm/uvm_extern.h>
+#endif
 
-void vunmap(const void *addr);
+#include <linux/types.h>
+#include <linux/overflow.h>
+
+struct page;
+
+#if defined(__OpenBSD)
+void	*vmap(struct vm_page **, unsigned int, unsigned long, pgprot_t);
+#else
+void	*vmap(struct page **, unsigned int, unsigned long, pgprot_t);
+#endif
+#if defined(__OpenBSD)
+void	 vunmap(void *, size_t);
+#else
+void	 vunmap(const void *addr);
+#endif
 
 void *vmalloc(unsigned long size);
 void *vzalloc(unsigned long size);
@@ -45,4 +79,4 @@ void *vmalloc_user(unsigned long size);
 
 void vfree(const void *addr);
 
-#endif	/* _LINUX_VMALLOC_H_ */
+#endif

@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2015-2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,29 +26,23 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_IRQFLAGS_H_
-#define _LINUX_IRQFLAGS_H_
+#ifndef _LINUX_IRQFLAGS_H
+#define _LINUX_IRQFLAGS_H
 
+#if defined(__OpenBSD__)
+#include <machine/intr.h>
+#else
+#include <machine/cpufunc.h>
 #include <linux/typecheck.h>
+#endif
 
 static inline void
-local_irq_disable(void)
-{
-	__asm __volatile("cli": : :"memory");
-}
+local_irq_disable(void);
 
-static inline void
-local_irq_enable(void)
-{
-	__asm __volatile("sti": : :"memory");
-}
-
-static inline bool
-irqs_disabled(void)
-{
-	return !(read_rflags() & 0x200UL);
-}
-
+#if defined(__OpenBSD__)
+#define local_irq_save(x)	(x) = splhigh()
+#define local_irq_restore(x)	splx((x))
+#else
 #define local_irq_save(flags)	\
 ({				\
 	flags = read_rflags();	\
@@ -58,5 +54,34 @@ local_irq_restore(unsigned long flags)
 {
 	write_rflags(flags);
 }
+#endif
 
-#endif	/* _LINUX_IRQFLAGS_H_ */
+#if defined(__OpenBSD__)
+#define local_irq_disable()	intr_disable()
+#define local_irq_enable()	intr_enable()
+#else
+static inline void
+local_irq_disable(void)
+{
+	__asm __volatile("cli": : :"memory");
+}
+
+static inline void
+local_irq_enable(void)
+{
+	__asm __volatile("sti": : :"memory");
+}
+#endif
+
+static inline bool
+irqs_disabled(void)
+{
+#if defined(__OpenBSD__)
+	/* XXX not quite true */
+	return (1);
+#else
+	return !(read_rflags() & 0x200UL);
+#endif
+}
+
+#endif

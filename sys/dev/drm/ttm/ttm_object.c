@@ -66,6 +66,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/atomic.h>
+#include <linux/rcupdate.h>
 
 struct ttm_object_file {
 	struct ttm_object_device *tdev;

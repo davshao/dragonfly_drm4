@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*-
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
@@ -27,30 +29,21 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef	_LINUX_LOG2_H_
-#define	_LINUX_LOG2_H_
+#ifndef	_LINUX_LOG2_H
+#define	_LINUX_LOG2_H
 
-#include <linux/types.h>
+#if defined(__OpenBSD__)
+#include <sys/types.h>
+#include <sys/systm.h>
+#else
+#include <sys/libkern.h> /* includes the above two headers */
+#endif
 
-#include <sys/libkern.h>
+// #include <linux/types.h>
 
-static inline unsigned long
-roundup_pow_of_two(unsigned long x)
-{
-	return (1UL << flsl(x - 1));
-}
-
-static inline int
-is_power_of_2(unsigned long n)
-{
-	return (n == roundup_pow_of_two(n));
-}
-
-static inline unsigned long
-rounddown_pow_of_two(unsigned long x)
-{
-	return (1UL << (flsl(x) - 1));
-}
+#if defined(__OpenBSD__)
+#define ilog2(x) ((sizeof(x) <= 4) ? (fls(x) - 1) : (flsl(x) - 1))
+#else
 
 /**
  * ilog2 - log of base 2 of 32-bit or a 64-bit unsigned value
@@ -132,7 +125,39 @@ rounddown_pow_of_two(unsigned long x)
 	(sizeof(n) <= 4) ?			\
 	fls((u32)(n)) - 1 : flsll((u64)(n)) - 1	\
 )
+#endif
 
-#define	order_base_2(n) ilog2(roundup_pow_of_two(n))
+int	drm_order(unsigned long);
 
-#endif	/* _LINUX_LOG2_H_ */
+static inline unsigned long
+roundup_pow_of_two(unsigned long x);
+
+#if defined(__OpenBSD__)
+#define is_power_of_2(x)	(((x) != 0) && (((x) - 1) & (x)) == 0)
+#else
+static inline int
+is_power_of_2(unsigned long x)
+{
+	return (x == roundup_pow_of_two(x));
+}
+#endif
+
+#if defined(__OpenBSD__)
+#define order_base_2(x)		drm_order(x)
+#else
+#define	order_base_2(x)		ilog2(roundup_pow_of_two(x))
+#endif
+
+static inline unsigned long
+roundup_pow_of_two(unsigned long x)
+{
+	return (1UL << flsl(x - 1));
+}
+
+static inline unsigned long
+rounddown_pow_of_two(unsigned long x)
+{
+	return (1UL << (flsl(x) - 1));
+}
+
+#endif

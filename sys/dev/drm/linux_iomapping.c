@@ -28,11 +28,14 @@
 #include <vm/pmap.h>
 #include <vm/vm.h>
 
+#include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/bug.h>
-#include <asm/page.h>
-#include <asm/io.h>
+#include <linux/io.h>
+#include <linux/io-mapping.h>
+#include <asm/pgtable.h>
+// #include <asm/page.h>
 
 struct lock iomap_lock = LOCK_INITIALIZER("dlioml", 0, LK_CANRECURSE);
 
@@ -47,7 +50,7 @@ __ioremap_common(unsigned long phys_addr, unsigned long size, int cache_mode)
 	BUG_ON(phys_addr & PAGE_MASK);
 	BUG_ON(size & PAGE_MASK);
 
-	imp = kmalloc(sizeof(struct iomap), M_DRM, M_WAITOK);
+	imp = __kmalloc(sizeof(struct iomap), M_DRM, M_WAITOK);
 	imp->paddr = phys_addr;
 	imp->npages = size / PAGE_SIZE;
 	imp->pmap_addr = pmap_mapdev_attr(phys_addr, size, cache_mode);
@@ -100,6 +103,79 @@ void iounmap(void __iomem *ptr)
 	lockmgr(&iomap_lock, LK_RELEASE);
 
 	kfree(imp);
+}
+
+struct io_mapping *
+io_mapping_create_wc(resource_size_t base, unsigned long size)
+{
+	struct io_mapping *map;
+
+	map = __kmalloc(sizeof(struct io_mapping), M_DRM, M_WAITOK);
+	map->base = base;
+	map->size = size;
+	map->prot = VM_MEMATTR_WRITE_COMBINING;
+
+	map->vaddr = pmap_mapdev_attr(base, size,
+					VM_MEMATTR_WRITE_COMBINING);
+	if (map->vaddr == NULL)
+		return NULL;
+
+	return map;
+}
+
+void
+io_mapping_free(struct io_mapping *mapping)
+{
+	/* Default memory attribute is write-back */
+	pmap_mapdev_attr(mapping->base, mapping->size, VM_MEMATTR_WRITE_BACK);
+	kfree(mapping);
+}
+
+void *
+io_mapping_map_wc(struct io_mapping *mapping,
+		  unsigned long offset,
+		  unsigned long size)
+{
+	BUG_ON(offset >= mapping->size);
+
+	return ioremap_wc(mapping->base + offset, size);
+}
+
+void *
+io_mapping_map_atomic_wc(struct io_mapping *mapping, unsigned long offset)
+{
+	return ioremap_wc(mapping->base + offset, PAGE_SIZE);
+}
+
+void
+io_mapping_unmap(void *vaddr)
+{
+	iounmap(vaddr);
+}
+
+void
+io_mapping_unmap_atomic(void *vaddr)
+{
+	iounmap(vaddr);
+}
+
+struct io_mapping *
+io_mapping_init_wc(struct io_mapping *iomap,
+		   resource_size_t base,
+		   unsigned long size)
+{
+	iomap->base = base;
+	iomap->size = size;
+	iomap->vaddr = ioremap_wc(base, size);
+	iomap->prot = pgprot_writecombine(PAGE_KERNEL_IO);
+
+	return iomap;
+}
+
+void
+io_mapping_fini(struct io_mapping *mapping)
+{
+	iounmap(mapping->vaddr);
 }
 
 #include <sys/memrange.h>

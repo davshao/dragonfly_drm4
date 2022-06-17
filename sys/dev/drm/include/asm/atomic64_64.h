@@ -27,6 +27,7 @@
 #ifndef _ASM_ATOMIC64_64_H_
 #define _ASM_ATOMIC64_64_H_
 
+#if 0
 #include <linux/types.h>
 
 #include <cpu/x86_64/include/atomic.h>
@@ -45,5 +46,6 @@ atomic64_inc(atomic64_t *v)
                     : "=m" (v->counter)
                     : "m" (v->counter));
 }
+#endif
 
 #endif	/* _ASM_ATOMIC64_64_H_ */

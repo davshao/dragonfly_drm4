@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2019 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,26 +26,31 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_SHRINKER_H_
-#define _LINUX_SHRINKER_H_
+#ifndef _LINUX_SHRINKER_H
+#define _LINUX_SHRINKER_H
 
 #include <linux/types.h>
+#include <linux/list.h>
 
 struct shrink_control {
 	gfp_t gfp_mask;
-	unsigned long nr_to_scan;
+	u_long	nr_to_scan;
+	u_long	nr_scanned;
 };
 
 struct shrinker {
-	unsigned long (*count_objects)(struct shrinker *,
-				       struct shrink_control *sc);
-	unsigned long (*scan_objects)(struct shrinker *,
-				      struct shrink_control *sc);
+	u_long	(*count_objects)(struct shrinker *, struct shrink_control *);
+	u_long	(*scan_objects)(struct shrinker *, struct shrink_control *);
+	long	batch;
 	int seeks;
+	TAILQ_ENTRY(shrinker) next;
 };
-
-#define DEFAULT_SEEKS	2
 
 #define SHRINK_STOP	(~0UL)
 
-#endif	/* _LINUX_SHRINKER_H_ */
+#define DEFAULT_SEEKS	2
+
+int register_shrinker(struct shrinker *);
+void unregister_shrinker(struct shrinker *);
+
+#endif

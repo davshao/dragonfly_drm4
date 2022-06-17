@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -31,7 +33,7 @@
 #include <linux/stringify.h>
 #include <linux/kernel.h>
 
-#define MODULE_PARM_DESC(name, desc)
+#define MODULE_PARM_DESC(parm, desc)
 
 #define _TUNABLE_PREFIX			__stringify(KBUILD_MODNAME)
 #define _TUNABLE_VAR(name)		_TUNABLE_PREFIX#name
@@ -44,15 +46,18 @@
 
 #define TUNABLE_charp(name, var)	/* kgetenv() could be useful here */
 
-#define module_param(var, type, mode) \
+#define module_param(var, type, perm) \
 	TUNABLE_##type(name, var)
 
-#define module_param_unsafe(var, type, mode)	module_param(var, type, mode)
+#define module_param_named(name, value, type, perm) \
+	TUNABLE_##type(name, value)
 
-#define module_param_named(name, var, type, mode) \
-	TUNABLE_##type(name, var)
+#define module_param_named_unsafe(name, value, type, perm) \
+	TUNABLE_##type((name), (value))
 
-#define module_param_named_unsafe(name, var, type, mode) \
-	TUNABLE_##type((name), (var))
+#define module_param_unsafe(var, type, perm) \
+	module_param(var, type, perm)
 
-#endif	/* _LINUX_MODULEPARAM_H_ */
+#define module_param_string(name, string, len, perm)
+
+#endif

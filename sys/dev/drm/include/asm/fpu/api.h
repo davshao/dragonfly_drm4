@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -27,4 +29,29 @@
 #ifndef _ASM_FPU_API_H
 #define _ASM_FPU_API_H
 
-#endif /* _ASM_FPU_API_H */
+#if defined(__OpenBSD__)
+
+#include <linux/bottom_half.h>
+
+#ifdef __i386__
+#include <machine/npx.h>
+#endif
+
+#ifdef __amd64__
+#include <machine/fpu.h>
+#endif
+
+#else
+
+#include <machine/md_var.h>
+
+#endif
+
+#if defined(__OpenBSD__)
+#define kernel_fpu_begin()	fpu_kernel_enter()
+#define kernel_fpu_end()	fpu_kernel_exit()
+#else
+/* declared in <machine/md_var.h> */
+#endif
+
+#endif

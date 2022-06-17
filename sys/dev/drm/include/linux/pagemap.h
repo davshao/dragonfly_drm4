@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2015-2020 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,19 +26,20 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_PAGEMAP_H_
-#define _LINUX_PAGEMAP_H_
+#ifndef _LINUX_PAGEMAP_H
+#define _LINUX_PAGEMAP_H
 
-#include <linux/mm.h>
-#include <linux/fs.h>
-#include <linux/list.h>
+// #include <linux/mm.h>
+// #include <linux/fs.h>
+// #include <linux/list.h>
+// #include <linux/compiler.h>
+#include <linux/uaccess.h>
 #include <linux/highmem.h>
-#include <linux/compiler.h>
-#include <asm/uaccess.h>
 #include <linux/gfp.h>
-#include <linux/bitops.h>
-#include <linux/hardirq.h>
+// #include <linux/bitops.h>
+// #include <linux/hardirq.h>
 
+#if 0 /* not used in kernel drm */
 static inline int
 fault_in_pages_writeable(char __user *uaddr, int size)
 {
@@ -90,6 +93,7 @@ fault_in_pages_readable(const char __user *uaddr, int size)
 
 	return ret;
 }
+#endif
 
 static inline gfp_t
 mapping_gfp_mask(struct vm_object * mapping)
@@ -104,4 +108,4 @@ mapping_gfp_constraint(struct vm_object *mapping, gfp_t gfp_mask)
 	return (mapping_gfp_mask(mapping) & gfp_mask);
 }
 
-#endif	/* _LINUX_PAGEMAP_H_ */
+#endif
