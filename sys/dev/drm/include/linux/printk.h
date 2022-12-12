@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2015-2019 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,20 +26,18 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_PRINTK_H_
-#define _LINUX_PRINTK_H_
-
-#include <sys/stdarg.h>
-#include <linux/init.h>
-#include <linux/cache.h>
+#ifndef _LINUX_PRINTK_H
+#define _LINUX_PRINTK_H
 
 #include <sys/types.h>
 #include <sys/systm.h>
+#include <sys/stdarg.h>
 
-struct va_format {
-	const char *fmt;
-	va_list *va;
-};
+#include <linux/init.h>
+// #include <linux/cache.h>
+
+// #include <sys/types.h>
+// #include <sys/systm.h>
 
 #define printk(...)	kprintf(__VA_ARGS__)
 
@@ -55,23 +55,61 @@ struct va_format {
 #define pr_fmt(fmt) fmt
 #endif
 
-#define pr_emerg(fmt, ...) \
-	printk(KERN_EMERG pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_alert(fmt, ...) \
-	printk(KERN_ALERT pr_fmt(fmt), ##__VA_ARGS__)
+#if defined(__OpenBSD__)
+#define printk_once(fmt, arg...) ({		\
+	static int __warned;			\
+	if (!__warned) {			\
+		printk(fmt, ## arg);		\
+		__warned = 1;			\
+	}					\
+})
+#else
+/*
+ * Print a one-time message (analogous to WARN_ONCE() et al):
+ */
+#define printk_once(x...)			\
+({						\
+	static bool __print_once;		\
+						\
+	if (!__print_once) {			\
+		__print_once = true;		\
+		printk(x);			\
+	}					\
+})
+#endif
+
+#define printk_ratelimit()	1
+
+#define pr_warning(fmt, ...) \
+	printk(KERN_WARNING pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_warn pr_warning
+#define pr_warn_once(fmt, arg...)	printk_once(KERN_WARNING pr_fmt(fmt), ## arg)
+#define pr_notice(fmt, ...) \
+	printk(KERN_NOTICE pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_crit(fmt, ...) \
 	printk(KERN_CRIT pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_err(fmt, ...) \
 	printk(KERN_ERR pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_warning(fmt, ...) \
-	printk(KERN_WARNING pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_warn pr_warning
-#define pr_notice(fmt, ...) \
-	printk(KERN_NOTICE pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_info(fmt, ...) \
-	printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_err_once(fmt, arg...)	printk_once(KERN_ERR pr_fmt(fmt), ## arg)
 #define pr_cont(fmt, ...) \
 	printk(KERN_CONT fmt, ##__VA_ARGS__)
+
+#define pr_info(fmt, ...) \
+	printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_info_ratelimited(fmt, ...) \
+	printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
+#if defined(__OpenBSD__)
+#define pr_info_once(fmt, arg...)	printk_once(KERN_INFO pr_fmt(fmt), ## arg)
+#else
+#define pr_info_once(fmt, ...) do {		\
+	static bool __printed_once;		\
+						\
+	if (!__printed_once) {			\
+		__printed_once = true;		\
+		kprintf(fmt, ##__VA_ARGS__);	\
+	}					\
+} while (0)
+#endif
 
 /* pr_devel() should produce zero code unless DEBUG is defined */
 #ifdef DEBUG
@@ -85,27 +123,10 @@ struct va_format {
 #define pr_debug(fmt, ...) \
 	printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 
-/*
- * Print a one-time message (analogous to WARN_ONCE() et al):
- */
-#define printk_once(x...)			\
-({						\
-	static bool __print_once;		\
-						\
-	if (!__print_once) {			\
-		__print_once = true;		\
-		printk(x);			\
-	}					\
-})
-
-#define pr_info_once(fmt, ...) do {		\
-	static bool __printed_once;		\
-						\
-	if (!__printed_once) {			\
-		__printed_once = true;		\
-		kprintf(fmt, ##__VA_ARGS__);	\
-	}					\
-} while (0)
+#define pr_emerg(fmt, ...) \
+	printk(KERN_EMERG pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_alert(fmt, ...) \
+	printk(KERN_ALERT pr_fmt(fmt), ##__VA_ARGS__)
 
 enum {
 	DUMP_PREFIX_NONE,
@@ -117,6 +138,20 @@ static inline void
 print_hex_dump(const char *level, const char *prefix_str, int prefix_type,
     int rowsize, int groupsize, const void *buf, size_t len, bool ascii)
 {
+#if defined(__OpenBSD__) /* drm_linux.c */
+	const uint8_t *cbuf = buf;
+	int i;
+
+	for (i = 0; i < len; i++) {
+		if ((i % rowsize) == 0)
+			printf("%s", prefix_str);
+		printf("%02x", cbuf[i]);
+		if ((i % rowsize) == (rowsize - 1))
+			printf("\n");
+		else
+			printf(" ");
+	}
+#else
 	int flags;
 
 	flags = rowsize;
@@ -126,8 +161,12 @@ print_hex_dump(const char *level, const char *prefix_str, int prefix_type,
 		flags |= HD_OMIT_CHARS;
 
 	hexdump(buf, len, prefix_str, flags);
+#endif
 }
 
-#define printk_ratelimit()	1
+struct va_format {
+	const char *fmt;
+	va_list *va;
+};
 
-#endif	/* _LINUX_PRINTK_H_ */
+#endif
