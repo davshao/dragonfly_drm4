@@ -72,19 +72,11 @@ __pagevec_release(struct pagevec *pvec)
 }
 #endif
 
-#if defined(__OpenBSD__)
 static inline unsigned int
 pagevec_space(struct pagevec *pvec)
 {
 	return PAGEVEC_SIZE - pvec->nr;
 }
-#else
-static inline unsigned int
-pagevec_space(struct pagevec *pvec)
-{
-	return PAGEVEC_SIZE - pvec->nr;
-}
-#endif
 
 static inline void
 pagevec_init(struct pagevec *pvec)
