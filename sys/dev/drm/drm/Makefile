@@ -123,6 +123,7 @@ SRCS	= \
 	linux_wait.c \
 	linux_workqueue.c \
 	linux_wwmutex.c \
+	linux_xarray.c \
 	ttm_memory.c \
 	ttm_tt.c \
 	ttm_bo.c \

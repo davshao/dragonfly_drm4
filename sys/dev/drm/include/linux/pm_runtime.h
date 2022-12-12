@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2017-2019 François Tigeot <ftigeot@wolfpond.org>
  * All rights reserved.
@@ -24,20 +26,49 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef LINUX_PM_RUNTIME_H
-#define LINUX_PM_RUNTIME_H
+#ifndef _LINUX_PM_RUNTIME_H
+#define _LINUX_PM_RUNTIME_H
 
+#include <sys/types.h>
+#if defined(__OpenBSD__)
+#include <sys/device.h>
+#else
 #include <linux/device.h>
-#include <linux/notifier.h>
+#endif
+// #include <linux/notifier.h>
 #include <linux/pm.h>
-#include <linux/jiffies.h>
+// #include <linux/jiffies.h>
 
 extern void pm_runtime_enable(struct device *dev);
 
 static inline void
-pm_runtime_disable(struct device *dev)
+pm_runtime_mark_last_busy(struct device *dev)
 {
-	/* pm_runtime_disable not implemented */
+	/* pm_runtime_mark_last_busy not implemented */
+}
+
+static inline void
+pm_runtime_use_autosuspend(struct device *dev)
+{
+	/* pm_runtime_use_autosuspend not implemented */
+}
+ 
+static inline void
+pm_runtime_dont_use_autosuspend(struct device *dev)
+{
+	/* pm_runtime_dont_use_autosuspend not implemented */
+}
+
+static inline void
+pm_runtime_put_autosuspend(struct device *dev)
+{
+	/* pm_runtime_put_autosuspend not implemented */
+}
+
+static inline void
+pm_runtime_set_autosuspend_delay(struct device *dev, int x)
+{
+	/* pm_runtime_set_autosuspend_delay not implemented */
 }
 
 static inline int
@@ -48,15 +79,33 @@ pm_runtime_set_active(struct device *dev)
 }
 
 static inline void
-pm_runtime_mark_last_busy(struct device *dev)
+pm_runtime_allow(struct device *dev)
 {
-	/* pm_runtime_mark_last_busy not implemented */
+	/* pm_runtime_allow not implemented */
+}
+
+static inline void
+pm_runtime_put_noidle(struct device *dev)
+{
+	/* pm_runtime_put_noidle implemented */
 }
 
 static inline void
 pm_runtime_forbid(struct device *dev)
 {
 	/* pm_runtime_forbid not implemented */
+}
+
+static inline void
+pm_runtime_get_noresume(struct device *dev)
+{
+	/* pm_runtime_get_noresume not implemented */
+}
+
+static inline void
+pm_runtime_put(struct device *dev)
+{
+	/* pm_runtime_put not implemented */
 }
 
 static inline int
@@ -66,10 +115,24 @@ pm_runtime_get_sync(struct device *dev)
 	return 0;
 }
 
-static inline void
-pm_runtime_put_autosuspend(struct device *dev)
+static inline int
+pm_runtime_get_if_in_use(struct device *dev)
 {
-	/* pm_runtime_put_autosuspend not implemented */
+	/* pm_runtime_get_if_in_use not implemented */
+	return -EINVAL;
 }
 
-#endif /* LINUX_PM_RUNTIME_H */
+static inline int
+pm_runtime_get_if_active(struct device *dev, bool x)
+{
+	/* pm_runtime_get_if_active not implemented */
+	return -EINVAL;
+}
+
+static inline void
+pm_runtime_disable(struct device *dev)
+{
+	/* pm_runtime_disable not implemented */
+}
+
+#endif
