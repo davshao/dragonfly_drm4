@@ -75,6 +75,7 @@ in_task(void)
 #else
 #define in_task() (curthread->td_pri >= TDPRI_SOFT_NORM)
 
+/* not sure at all */
 #define in_interrupt() !in_task()
 #endif
 
