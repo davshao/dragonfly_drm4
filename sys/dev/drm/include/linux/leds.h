@@ -27,10 +27,12 @@
 #ifndef _LINUX_LEDS_H_
 #define _LINUX_LEDS_H_
 
+#if 0
 #include <linux/list.h>
 #include <linux/rwsem.h>
 #include <linux/spinlock.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
+#endif
 
 #endif	/* _LINUX_LEDS_H_ */
