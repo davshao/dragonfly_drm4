@@ -27,10 +27,12 @@
 #ifndef _LINUX_PNP_H_
 #define _LINUX_PNP_H_
 
+#if 0
 #include <linux/device.h>
 #include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/mod_devicetable.h>
 #include <linux/console.h>
+#endif
 
 #endif	/* _LINUX_PNP_H_ */
