@@ -31,22 +31,64 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 
+#if defined(__OpenBSD__)
+struct kthread {
+	int (*func)(void *);
+	void *data;
+	struct proc *proc;
+	volatile u_int flags;
+#define KTHREAD_SHOULDSTOP	0x0000001
+#define KTHREAD_STOPPED		0x0000002
+#define KTHREAD_SHOULDPARK	0x0000004
+#define KTHREAD_PARKED		0x0000008
+	LIST_ENTRY(kthread) next;
+};
+
+LIST_HEAD(, kthread) kthread_list = LIST_HEAD_INITIALIZER(kthread_list);
+#endif /* OpenBSD */
+
 /*
    All Linux threads/processes have an associated task_struct
    a kthread is a pure kernel thread without userland context
 */
 
 static void
-linux_ktfn_wrapper(void *arg)
+kthread_func(void *arg)
 {
+#if defined(__OpenBSD__)
+	struct kthread *thread = arg;
+	int ret;
+
+	ret = thread->func(thread->data);
+	thread->flags |= KTHREAD_STOPPED;
+	wakeup(thread);
+	kthread_exit(ret);
+#else
 	struct task_struct *task = arg;
 
 	task->kt_exitvalue = task->kt_fn(task->kt_fndata);
+#endif
 }
 
 struct task_struct *
-kthread_run(int (*lfn)(void *), void *data, const char *namefmt, ...)
+kthread_run(int (*func)(void *), void *data, const char *name, ...)
 {
+#if defined(__OpenBSD__)
+	struct kthread *thread;
+
+	thread = malloc(sizeof(*thread), M_DRM, M_WAITOK);
+	thread->func = func;
+	thread->data = data;
+	thread->flags = 0;
+	
+	if (kthread_create(kthread_func, thread, &thread->proc, name)) {
+		free(thread, M_DRM, sizeof(*thread));
+		return ERR_PTR(-ENOMEM);
+	}
+
+	LIST_INSERT_HEAD(&kthread_list, thread, next);
+	return thread->proc;
+#else
 	struct task_struct *task;
 	struct thread *td;
 	__va_list args;
@@ -54,8 +96,8 @@ kthread_run(int (*lfn)(void *), void *data, const char *namefmt, ...)
 
 	task = kzalloc(sizeof(*task), GFP_KERNEL);
 
-	__va_start(args, namefmt);
-	ret = kthread_alloc(linux_ktfn_wrapper, task, &td, namefmt, args);
+	__va_start(args, name);
+	ret = kthread_alloc(kthread_func, task, &td, name, args);
 	__va_end(args);
 	if (ret) {
 		kfree(task);
@@ -67,7 +109,7 @@ kthread_run(int (*lfn)(void *), void *data, const char *namefmt, ...)
 
 	task->mm = NULL;	/* kthreads have no userland address space */
 
-	task->kt_fn = lfn;
+	task->kt_fn = func;
 	task->kt_fndata = data;
 	lockinit(&task->kt_spin, "tspin1", 0, 0);
 
@@ -75,6 +117,7 @@ kthread_run(int (*lfn)(void *), void *data, const char *namefmt, ...)
 	lwkt_schedule(td);
 
 	return task;
+#endif
 }
 
 #define KTHREAD_SHOULD_STOP 1

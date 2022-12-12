@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*-
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
@@ -28,20 +30,20 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef	_LINUX_NOTIFIER_H_
-#define	_LINUX_NOTIFIER_H_
+#ifndef _LINUX_NOTIFIER_H
+#define _LINUX_NOTIFIER_H
 
+#if 0
 #include <linux/errno.h>
 #include <linux/mutex.h>
 #include <linux/rwsem.h>
+#endif
 
 #include <sys/eventhandler.h>
 
 /*
  * Max number of FreeBSD events to map to Linux events per notify type.
  */
-#define	NOTIFY_DONE	0
-#define NOTIFY_OK	1
 #define	_NOTIFY_COUNT	7
 
 struct notifier_block {
@@ -67,6 +69,10 @@ ATOMIC_INIT_NOTIFIER_HEAD(struct atomic_notifier_head *anh)
 {
 }
 
+#define NOTIFY_DONE	0
+#define NOTIFY_OK	1
+#define NOTIFY_BAD	2
+
 static inline int
 atomic_notifier_call_chain(struct atomic_notifier_head *anh,
 					unsigned long val, void *v)
@@ -74,4 +80,4 @@ atomic_notifier_call_chain(struct atomic_notifier_head *anh,
 	return 0;
 }
 
-#endif	/* _LINUX_NOTIFIER_H_ */
+#endif
