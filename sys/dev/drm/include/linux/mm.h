@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*-
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
@@ -142,6 +144,10 @@ set_page_dirty(struct page *page)
 #define PFN_DOWN(x)		((x) >> PAGE_SHIFT)
 #define PFN_PHYS(x)		((x) << PAGE_SHIFT)
 
+/* not sure
+ * OpenBSD tests for address in min, max vm range
+ * DragonFly tests if address in list inserted with vmap
+ */
 #if defined(__OpenBSD__)
 bool is_vmalloc_addr(const void *);
 #else
