@@ -26,8 +26,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_MODULEPARAM_H_
-#define _LINUX_MODULEPARAM_H_
+#ifndef _LINUX_MODULEPARAM_H
+#define _LINUX_MODULEPARAM_H
 
 #include <linux/init.h>
 #include <linux/stringify.h>
