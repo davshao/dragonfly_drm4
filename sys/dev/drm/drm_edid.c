@@ -32,16 +32,20 @@
 #include "opt_drm.h"
 #endif
 
-#include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/hdmi.h>
 #include <linux/i2c.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/vga_switcheroo.h>
+
 #include <drm/drmP.h>
+#include <drm/drm_displayid.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
-#include <drm/drm_displayid.h>
+#include <drm/drm_print.h>
 #include <drm/drm_scdc_helper.h>
 
 #include "drm_crtc_internal.h"
@@ -118,8 +122,17 @@ static const struct edid_quirk {
 	/* AEO model 0 reports 8 bpc, but is a 6 bpc panel */
 	{ "AEO", 0, EDID_QUIRK_FORCE_6BPC },
 
+	/* BOE model on HP Pavilion 15-n233sl reports 8 bpc, but is a 6 bpc panel */
+	{ "BOE", 0x78b, EDID_QUIRK_FORCE_6BPC },
+
 	/* CPT panel of Asus UX303LA reports 8 bpc, but is a 6 bpc panel */
 	{ "CPT", 0x17df, EDID_QUIRK_FORCE_6BPC },
+
+	/* SDC panel of Lenovo B50-80 reports 8 bpc, but is a 6 bpc panel */
+	{ "SDC", 0x3652, EDID_QUIRK_FORCE_6BPC },
+
+	/* BOE model 0x0771 reports 8 bpc, but is a 6 bpc panel */
+	{ "BOE", 0x0771, EDID_QUIRK_FORCE_6BPC },
 
 	/* Belinea 10 15 55 */
 	{ "MAX", 1516, EDID_QUIRK_PREFER_LARGE_60 },
@@ -162,14 +175,62 @@ static const struct edid_quirk {
 	/* Medion MD 30217 PG */
 	{ "MED", 0x7b8, EDID_QUIRK_PREFER_LARGE_75 },
 
+	/* Lenovo G50 */
+	{ "SDC", 18514, EDID_QUIRK_FORCE_6BPC },
+
 	/* Panel in Samsung NP700G7A-S01PL notebook reports 6bpc */
 	{ "SEC", 0xd033, EDID_QUIRK_FORCE_8BPC },
 
 	/* Rotel RSX-1058 forwards sink's EDID but only does HDMI 1.1*/
 	{ "ETR", 13896, EDID_QUIRK_FORCE_8BPC },
 
-	/* HTC Vive VR Headset */
+	/* Valve Index Headset */
+	{ "VLV", 0x91a8, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91b0, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91b1, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91b2, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91b3, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91b4, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91b5, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91b6, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91b7, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91b8, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91b9, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91ba, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91bb, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91bc, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91bd, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91be, EDID_QUIRK_NON_DESKTOP },
+	{ "VLV", 0x91bf, EDID_QUIRK_NON_DESKTOP },
+
+	/* HTC Vive and Vive Pro VR Headsets */
 	{ "HVR", 0xaa01, EDID_QUIRK_NON_DESKTOP },
+	{ "HVR", 0xaa02, EDID_QUIRK_NON_DESKTOP },
+
+	/* Oculus Rift DK1, DK2, CV1 and Rift S VR Headsets */
+	{ "OVR", 0x0001, EDID_QUIRK_NON_DESKTOP },
+	{ "OVR", 0x0003, EDID_QUIRK_NON_DESKTOP },
+	{ "OVR", 0x0004, EDID_QUIRK_NON_DESKTOP },
+	{ "OVR", 0x0012, EDID_QUIRK_NON_DESKTOP },
+
+	/* Windows Mixed Reality Headsets */
+	{ "ACR", 0x7fce, EDID_QUIRK_NON_DESKTOP },
+	{ "HPN", 0x3515, EDID_QUIRK_NON_DESKTOP },
+	{ "LEN", 0x0408, EDID_QUIRK_NON_DESKTOP },
+	{ "LEN", 0xb800, EDID_QUIRK_NON_DESKTOP },
+	{ "FUJ", 0x1970, EDID_QUIRK_NON_DESKTOP },
+	{ "DEL", 0x7fce, EDID_QUIRK_NON_DESKTOP },
+	{ "SEC", 0x144a, EDID_QUIRK_NON_DESKTOP },
+	{ "AUS", 0xc102, EDID_QUIRK_NON_DESKTOP },
+
+	/* Sony PlayStation VR Headset */
+	{ "SNY", 0x0704, EDID_QUIRK_NON_DESKTOP },
+
+	/* Sensics VR Headsets */
+	{ "SEN", 0x1019, EDID_QUIRK_NON_DESKTOP },
+
+	/* OSVR HDK and HDK2 VR Headsets */
+	{ "SVR", 0x1019, EDID_QUIRK_NON_DESKTOP },
 };
 
 /*
@@ -1346,6 +1407,7 @@ bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
 
 	if (block == 0) {
 		int score = drm_edid_header_is_valid(raw_edid);
+	
 		if (score == 8) {
 			if (edid_corrupt)
 				*edid_corrupt = false;
@@ -4519,9 +4581,9 @@ static int validate_displayid(u8 *displayid, int length, int idx)
 {
 	int i;
 	u8 csum = 0;
-	struct displayid_hdr *base;
+	struct displayid_header *base;
 
-	base = (struct displayid_hdr *)&displayid[idx];
+	base = (struct displayid_header *)&displayid[idx];
 
 	DRM_DEBUG_KMS("base revision 0x%x, length %d, %d %d\n",
 		      base->rev, base->bytes, base->prod_id, base->ext_count);
@@ -4627,7 +4689,7 @@ static int add_displayid_detailed_modes(struct drm_connector *connector,
 	if (ret)
 		return 0;
 
-	idx += sizeof(struct displayid_hdr);
+	idx += sizeof(struct displayid_header);
 	while (block = (struct displayid_block *)&displayid[idx],
 	       idx + sizeof(struct displayid_block) <= length &&
 	       idx + sizeof(struct displayid_block) + block->num_bytes <= length &&
@@ -5049,7 +5111,7 @@ static int drm_parse_display_id(struct drm_connector *connector,
 	if (ret)
 		return ret;
 
-	idx += sizeof(struct displayid_hdr);
+	idx += sizeof(struct displayid_header);
 	while (block = (struct displayid_block *)&displayid[idx],
 	       idx + sizeof(struct displayid_block) <= length &&
 	       idx + sizeof(struct displayid_block) + block->num_bytes <= length &&
