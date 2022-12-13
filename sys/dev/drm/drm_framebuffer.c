@@ -23,7 +23,7 @@
 #include <linux/export.h>
 #include <linux/uaccess.h>
 
-#include <drm/drmP.h>
+// #include <drm/drmP.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_uapi.h>
@@ -38,6 +38,7 @@
 #include <drm/drm_util.h>
 
 #include "drm_crtc_internal.h"
+#include "drm_internal.h"
 
 /**
  * DOC: overview
