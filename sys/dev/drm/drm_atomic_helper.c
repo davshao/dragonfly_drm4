@@ -25,12 +25,24 @@
  * Daniel Vetter <daniel.vetter@ffwll.ch>
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_atomic.h>
-#include <drm/drm_plane_helper.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_atomic_helper.h>
+// #include <drm/drmP.h>
 #include <linux/dma-fence.h>
+#include <linux/ktime.h>
+#include <drm/drm_atomic.h>
+// #include <drm/drm_crtc_helper.h>
+#include <drm/drm_atomic_helper.h>
+
+#include <drm/drm_atomic_uapi.h>
+#include <drm/drm_bridge.h>
+#include <drm/drm_damage_helper.h>
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_gem_atomic_helper.h>
+#include <drm/drm_plane_helper.h>
+#include <drm/drm_print.h>
+// #include <drm/drm_self_refresh_helper.h>
+#include <drm/drm_vblank.h>
+#include <drm/drm_writeback.h>
 
 #include "drm_crtc_helper_internal.h"
 #include "drm_crtc_internal.h"
