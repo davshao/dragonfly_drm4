@@ -33,7 +33,12 @@
 #include <sys/types.h>
 
 #include <drm/drmP.h>
+#include <drm/drm_other_os.h>
+#include <drm/drm_sysctl.h>
 #include "drm_legacy.h"
+
+extern int drm_vblank_offdelay;
+extern unsigned int drm_timestamp_precision;
 
 SYSCTL_NODE(_hw, OID_AUTO, dri, CTLFLAG_RD, 0, "DRI Graphics");
 SYSCTL_INT(_hw_dri, OID_AUTO, debug, CTLFLAG_RW, &drm_debug, 0,
@@ -43,14 +48,14 @@ SYSCTL_INT(_hw_dri, OID_AUTO, vblank_offdelay, CTLFLAG_RW,
 SYSCTL_INT(_hw_dri, OID_AUTO, timestamp_precision, CTLFLAG_RW,
 	    &drm_timestamp_precision, 0, "Max. error on timestamps");
 
-static int	   drm_name_info DRM_SYSCTL_HANDLER_ARGS;
-static int	   drm_vm_info DRM_SYSCTL_HANDLER_ARGS;
-static int	   drm_clients_info DRM_SYSCTL_HANDLER_ARGS;
-static int	   drm_bufs_info DRM_SYSCTL_HANDLER_ARGS;
+static int	   drm_name_info (SYSCTL_HANDLER_ARGS);
+static int	   drm_vm_info (SYSCTL_HANDLER_ARGS);
+static int	   drm_clients_info (SYSCTL_HANDLER_ARGS);
+static int	   drm_bufs_info (SYSCTL_HANDLER_ARGS);
 
 struct drm_sysctl_list {
 	const char *name;
-	int	   (*f) DRM_SYSCTL_HANDLER_ARGS;
+	int	   (*f) (SYSCTL_HANDLER_ARGS);
 } drm_sysctl_list[] = {
 	{"name",    drm_name_info},
 	{"vm",	    drm_vm_info},
@@ -124,7 +129,7 @@ do {								\
 		goto done;					\
 } while (0)
 
-static int drm_name_info DRM_SYSCTL_HANDLER_ARGS
+static int drm_name_info (SYSCTL_HANDLER_ARGS)
 {
 	struct drm_device *dev = arg1;
 	char buf[128];
@@ -133,12 +138,12 @@ static int drm_name_info DRM_SYSCTL_HANDLER_ARGS
 
 	DRM_SYSCTL_PRINT("%s", dev->driver->name);
 	
-	DRM_LOCK(dev);
+	lockmgr(&(dev)->struct_mutex, LK_EXCLUSIVE);
 	if (dev->unique) {
 		ksnprintf(buf, sizeof(buf), " %s", dev->unique);
 		hasunique = 1;
 	}
-	DRM_UNLOCK(dev);
+	lockmgr(&(dev)->struct_mutex, LK_RELEASE);
 	
 	if (hasunique)
 		SYSCTL_OUT(req, buf, strlen(buf));
@@ -154,7 +159,7 @@ done:
  *
  * Prints information about all mappings in drm_device::maplist.
  */
-static int drm_vm_info DRM_SYSCTL_HANDLER_ARGS
+static int drm_vm_info (SYSCTL_HANDLER_ARGS)
 {
 	char buf[128];
 	int retcode;
@@ -169,7 +174,7 @@ static int drm_vm_info DRM_SYSCTL_HANDLER_ARGS
 	const char *type;
 	int i;
 
-	DRM_LOCK(dev);
+	lockmgr(&(dev)->struct_mutex, LK_EXCLUSIVE);
 	DRM_SYSCTL_PRINT("\nslot offset	        size       "
 	    "type flags address            handle mtrr\n");
 	i = 0;
@@ -195,13 +200,13 @@ static int drm_vm_info DRM_SYSCTL_HANDLER_ARGS
 
 	}
 	SYSCTL_OUT(req, "", 1);
-	DRM_UNLOCK(dev);
+	lockmgr(&(dev)->struct_mutex, LK_RELEASE);
 
 done:
 	return 0;
 }
 
-static int drm_bufs_info DRM_SYSCTL_HANDLER_ARGS
+static int drm_bufs_info (SYSCTL_HANDLER_ARGS)
 {
 	struct drm_device	 *dev = arg1;
 	struct drm_device_dma *dma = dev->dma;
@@ -214,9 +219,9 @@ static int drm_bufs_info DRM_SYSCTL_HANDLER_ARGS
 	/* We can't hold the locks around DRM_SYSCTL_PRINT, so make a temporary
 	 * copy of the whole structure and the relevant data from buflist.
 	 */
-	DRM_LOCK(dev);
+	lockmgr(&(dev)->struct_mutex, LK_EXCLUSIVE);
 	if (dma == NULL) {
-		DRM_UNLOCK(dev);
+		lockmgr(&(dev)->struct_mutex, LK_RELEASE);
 		return 0;
 	}
 	tempdma = *dma;
@@ -225,7 +230,7 @@ static int drm_bufs_info DRM_SYSCTL_HANDLER_ARGS
 	for (i = 0; i < dma->buf_count; i++)
 		templists[i] = dma->buflist[i]->list;
 	dma = &tempdma;
-	DRM_UNLOCK(dev);
+	lockmgr(&(dev)->struct_mutex, LK_RELEASE);
 
 	DRM_SYSCTL_PRINT("\n o     size count  free	 segs pages    kB\n");
 	for (i = 0; i <= DRM_MAX_ORDER; i++) {
@@ -254,7 +259,7 @@ done:
 	return retcode;
 }
 
-static int drm_clients_info DRM_SYSCTL_HANDLER_ARGS
+static int drm_clients_info (SYSCTL_HANDLER_ARGS)
 {
 	struct drm_device *dev = arg1;
 	struct drm_file *priv, *tempprivs;
@@ -262,7 +267,7 @@ static int drm_clients_info DRM_SYSCTL_HANDLER_ARGS
 	int retcode;
 	int privcount, i;
 
-	DRM_LOCK(dev);
+	lockmgr(&(dev)->struct_mutex, LK_EXCLUSIVE);
 
 	privcount = 0;
 	list_for_each_entry(priv, &dev->filelist, lhead)
@@ -271,14 +276,14 @@ static int drm_clients_info DRM_SYSCTL_HANDLER_ARGS
 	tempprivs = kmalloc(sizeof(struct drm_file) * privcount, M_DRM,
 			    M_WAITOK | M_NULLOK);
 	if (tempprivs == NULL) {
-		DRM_UNLOCK(dev);
+		lockmgr(&(dev)->struct_mutex, LK_RELEASE);
 		return ENOMEM;
 	}
 	i = 0;
 	list_for_each_entry(priv, &dev->filelist, lhead)
 		tempprivs[i++] = *priv;
 
-	DRM_UNLOCK(dev);
+	lockmgr(&(dev)->struct_mutex, LK_RELEASE);
 
 	DRM_SYSCTL_PRINT(
 	    "\na pid      magic     ioctls\n");

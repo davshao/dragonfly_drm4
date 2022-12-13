@@ -31,6 +31,32 @@
  * and are not exported to drivers.
  */
 
+#include <linux/types.h>
+
+enum drm_color_encoding;
+enum drm_color_range;
+// enum drm_connector_force;
+// enum drm_mode_status;
+
+struct drm_atomic_state;
+struct drm_bridge;
+struct drm_connector;
+struct drm_crtc;
+struct drm_device;
+struct drm_display_mode;
+struct drm_file;
+struct drm_framebuffer;
+struct drm_mode_create_dumb;
+struct drm_mode_fb_cmd2;
+struct drm_mode_fb_cmd;
+struct drm_mode_object;
+struct drm_mode_set;
+struct drm_plane;
+struct drm_plane_state;
+struct drm_property;
+struct edid;
+struct kref;
+struct work_struct;
 
 /* drm_crtc.c */
 int drm_mode_crtc_set_obj_prop(struct drm_mode_object *obj,
@@ -71,6 +97,8 @@ int drm_mode_destroy_dumb_ioctl(struct drm_device *dev,
 				void *data, struct drm_file *file_priv);
 
 /* drm_color_mgmt.c */
+const char *drm_get_color_encoding_name(enum drm_color_encoding encoding);
+const char *drm_get_color_range_name(enum drm_color_range range);
 
 /* IOCTLs */
 int drm_mode_gamma_get_ioctl(struct drm_device *dev,
