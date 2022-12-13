@@ -64,9 +64,21 @@
 #include <linux/pagemap.h>
 #include <linux/shmem_fs.h>
 #include <linux/dma-buf.h>
-#include <drm/drmP.h>
-#include <drm/drm_vma_manager.h>
+#include <linux/dma-buf-map.h>
+#include <linux/pagevec.h>
+
+// #include <drm/drmP.h>
+#include <drm/drm.h>
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
 #include <drm/drm_gem.h>
+#include <drm/drm_managed.h>
+#include <drm/drm_print.h>
+#include <drm/drm_vma_manager.h>
+
+#include <drm/drm_other_os.h>
+
 #include "drm_internal.h"
 
 #ifdef __DragonFly__
@@ -1054,15 +1066,15 @@ drm_gem_mmap_single(struct drm_device *dev, vm_ooffset_t *offset, vm_size_t size
 	struct drm_gem_object *gem_obj;
 	struct vm_object *vm_obj;
 
-	DRM_LOCK(dev);
+	lockmgr(&(dev)->struct_mutex, LK_EXCLUSIVE);
 	gem_obj = drm_gem_object_from_offset(dev, *offset);
 	if (gem_obj == NULL) {
-		DRM_UNLOCK(dev);
+		lockmgr(&(dev)->struct_mutex, LK_RELEASE);
 		return (ENODEV);
 	}
 
 	drm_gem_object_reference(gem_obj);
-	DRM_UNLOCK(dev);
+	lockmgr(&(dev)->struct_mutex, LK_RELEASE);
 	vm_obj = cdev_pager_allocate(gem_obj, OBJT_MGTDEVICE,
 	    dev->driver->gem_vm_ops, size, nprot,
 	    DRM_GEM_MAPPING_MAPOFF(*offset), curthread->td_ucred);

@@ -34,6 +34,7 @@
 #include <asm/set_memory.h>
 
 #include <drm/drmP.h>
+#include <drm/drm_other_os.h>
 #include <drm/i915_drm.h>
 
 #include "i915_drv.h"

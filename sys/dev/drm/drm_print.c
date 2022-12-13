@@ -34,7 +34,9 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 
-#include <drm/drmP.h>
+#include <linux/module.h>
+
+// #include <drm/drmP.h>
 #include <drm/drm.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_print.h>

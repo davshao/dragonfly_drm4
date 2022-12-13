@@ -20,9 +20,16 @@
  * OF THIS SOFTWARE.
  */
 
+#include <linux/uaccess.h>
+
+#include <drm/drm_drv.h>
 #include <drm/drm_encoder.h>
+#include <drm/drm_file.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_mode_config.h>
-#include <drm/drmP.h>
+#include <drm/drm_print.h>
+#include <linux/dma-resv.h>
+// #include <drm/drmP.h>
 
 #include "drm_crtc_internal.h"
 #include "drm_internal.h"
@@ -352,7 +359,8 @@ static int drm_mode_create_standard_properties(struct drm_device *dev)
 }
 
 /**
- * drm_mode_config_init - initialize DRM mode_configuration structure
+ * drmm_mode_config_init - managed DRM mode_configuration structure
+ * 	initialization
  * @dev: DRM device
  *
  * Initialize @dev's mode_config structure, used for tracking the graphics
@@ -362,8 +370,12 @@ static int drm_mode_create_standard_properties(struct drm_device *dev)
  * problem, since this should happen single threaded at init time. It is the
  * driver's problem to ensure this guarantee.
  *
+ * Cleanup is automatically handled through registering drm_mode_config_cleanup
+ * with drmm_add_action().
+ *
+ * Returns: 0 on success, negative error value on failure.
  */
-void drm_mode_config_init(struct drm_device *dev)
+int drmm_mode_config_init(struct drm_device *dev)
 {
 	lockinit(&dev->mode_config.mutex, "drmmcm", 0, LK_CANRECURSE);
 	drm_modeset_lock_init(&dev->mode_config.connection_mutex);
@@ -377,7 +389,8 @@ void drm_mode_config_init(struct drm_device *dev)
 	INIT_LIST_HEAD(&dev->mode_config.property_list);
 	INIT_LIST_HEAD(&dev->mode_config.property_blob_list);
 	INIT_LIST_HEAD(&dev->mode_config.plane_list);
-	idr_init(&dev->mode_config.crtc_idr);
+	INIT_LIST_HEAD(&dev->mode_config.privobj_list);
+	idr_init(&dev->mode_config.object_idr);
 	idr_init(&dev->mode_config.tile_idr);
 	ida_init(&dev->mode_config.connector_ida);
 	lockinit(&dev->mode_config.connector_list_lock, "dmccll", 0, 0);
@@ -393,8 +406,10 @@ void drm_mode_config_init(struct drm_device *dev)
 	dev->mode_config.num_crtc = 0;
 	dev->mode_config.num_encoder = 0;
 	dev->mode_config.num_total_plane = 0;
+
+	return 0;
 }
-EXPORT_SYMBOL(drm_mode_config_init);
+EXPORT_SYMBOL(drmm_mode_config_init);
 
 /**
  * drm_mode_config_cleanup - free up DRM mode_config info
@@ -477,7 +492,7 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 
 	ida_destroy(&dev->mode_config.connector_ida);
 	idr_destroy(&dev->mode_config.tile_idr);
-	idr_destroy(&dev->mode_config.crtc_idr);
+	idr_destroy(&dev->mode_config.object_idr);
 	drm_modeset_lock_fini(&dev->mode_config.connection_mutex);
 }
 EXPORT_SYMBOL(drm_mode_config_cleanup);
