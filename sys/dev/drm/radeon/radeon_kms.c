@@ -26,6 +26,7 @@
  *          Jerome Glisse
  */
 #include <drm/drmP.h>
+#include <drm/drm_other_os.h>
 #include "radeon.h"
 #include <drm/radeon_drm.h>
 #include "radeon_asic.h"
