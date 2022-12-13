@@ -26,6 +26,7 @@
 
 #include <drm/drm_sysfs.h>
 #include <drm/drmP.h>
+#include <drm/drm_other_os.h>
 #include "drm_internal.h"
 
 int drm_sysfs_connector_add(struct drm_connector *connector)
@@ -95,7 +96,7 @@ struct device *drm_sysfs_minor_alloc(struct drm_minor *minor)
 		return ERR_PTR(-ENOMEM);
 
 	devnode = make_dev(&drm_cdevsw, minor->index,
-		DRM_DEV_UID, DRM_DEV_GID, DRM_DEV_MODE, "dri/%s", dev_str);
+		UID_ROOT, GID_VIDEO, (S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP), "dri/%s", dev_str);
 
 	kdev->parent = minor->dev->dev;
 	dev_set_drvdata(kdev, minor);

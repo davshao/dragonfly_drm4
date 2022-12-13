@@ -33,6 +33,7 @@
 #include <linux/kernel.h>
 #include <linux/moduleparam.h>
 #include <linux/pwm.h>
+#include <drm/drm_sysctl.h>
 #include "intel_drv.h"
 
 #define CRC_PMIC_PWM_PERIOD_NS	21333

@@ -26,13 +26,24 @@
  */
 
 
-#include <drm/drmP.h>
+// #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
+#include <drm/drm_atomic_uapi.h>
+#include <drm/drm_bridge.h>
+#include <drm/drm_debugfs.h>
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_mode.h>
 #include <drm/drm_print.h>
+#include <drm/drm_writeback.h>
+
 #include <linux/sync_file.h>
+#include <linux/file.h>
 
 #include "drm_crtc_internal.h"
+#include "drm_internal.h"
 
 void __drm_crtc_commit_free(struct kref *kref)
 {
@@ -131,7 +142,8 @@ EXPORT_SYMBOL(drm_atomic_state_alloc);
  * @state: atomic state
  *
  * Default implementation for clearing atomic state.
- * This is useful for drivers that subclass the atomic state.
+ * This should only be used by drivers which are still subclassing
+ * &drm_atomic_state and haven't switched to &drm_private_state yet.
  */
 void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 {
@@ -151,6 +163,8 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 						       state->connectors[i].state);
 		state->connectors[i].ptr = NULL;
 		state->connectors[i].state = NULL;
+		state->connectors[i].old_state = NULL;
+		state->connectors[i].new_state = NULL;
 		drm_connector_put(connector);
 	}
 
@@ -165,6 +179,13 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 
 		state->crtcs[i].ptr = NULL;
 		state->crtcs[i].state = NULL;
+		state->crtcs[i].old_state = NULL;
+		state->crtcs[i].new_state = NULL;
+
+		if (state->crtcs[i].commit) {
+			drm_crtc_commit_put(state->crtcs[i].commit);
+			state->crtcs[i].commit = NULL;
+		}
 	}
 
 	for (i = 0; i < config->num_total_plane; i++) {
@@ -177,6 +198,8 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 						   state->planes[i].state);
 		state->planes[i].ptr = NULL;
 		state->planes[i].state = NULL;
+		state->planes[i].old_state = NULL;
+		state->planes[i].new_state = NULL;
 	}
 
 	for (i = 0; i < state->num_private_objs; i++) {
@@ -186,6 +209,8 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 						 state->private_objs[i].state);
 		state->private_objs[i].ptr = NULL;
 		state->private_objs[i].state = NULL;
+		state->private_objs[i].old_state = NULL;
+		state->private_objs[i].new_state = NULL;
 	}
 	state->num_private_objs = 0;
 
@@ -958,7 +983,46 @@ static void drm_atomic_plane_print_state(struct drm_printer *p,
 }
 
 /**
+ * DOC: handling driver private state
+ *
+ * Very often the DRM objects exposed to userspace in the atomic modeset api
+ * (&drm_connector, &drm_crtc and &drm_plane) do not map neatly to the
+ * underlying hardware. Especially for any kind of shared resources (e.g. shared
+ * clocks, scaler units, bandwidth and fifo limits shared among a group of
+ * planes or CRTCs, and so on) it makes sense to model these as independent
+ * objects. Drivers then need to do similar state tracking and commit ordering for
+ * such private (since not exposed to userspace) objects as the atomic core and
+ * helpers already provide for connectors, planes and CRTCs.
+ *
+ * To make this easier on drivers the atomic core provides some support to track
+ * driver private state objects using struct &drm_private_obj, with the
+ * associated state struct &drm_private_state.
+ *
+ * Similar to userspace-exposed objects, private state structures can be
+ * acquired by calling drm_atomic_get_private_obj_state(). This also takes care
+ * of locking, hence drivers should not have a need to call drm_modeset_lock()
+ * directly. Sequence of the actual hardware state commit is not handled,
+ * drivers might need to keep track of struct drm_crtc_commit within subclassed
+ * structure of &drm_private_state as necessary, e.g. similar to
+ * &drm_plane_state.commit. See also &drm_atomic_state.fake_commit.
+ *
+ * All private state structures contained in a &drm_atomic_state update can be
+ * iterated using for_each_oldnew_private_obj_in_state(),
+ * for_each_new_private_obj_in_state() and for_each_old_private_obj_in_state().
+ * Drivers are recommended to wrap these for each type of driver private state
+ * object they have, filtering on &drm_private_obj.funcs using for_each_if(), at
+ * least if they want to iterate over all objects of a given type.
+ *
+ * An earlier way to handle driver private state was by subclassing struct
+ * &drm_atomic_state. But since that encourages non-standard ways to implement
+ * the check/commit split atomic requires (by using e.g. "check and rollback or
+ * commit instead" of "duplicate state, check, then either commit or release
+ * duplicated state) it is deprecated in favour of using &drm_private_state.
+ */
+
+/**
  * drm_atomic_private_obj_init - initialize private object
+ * @dev: DRM device this object will be attached to
  * @obj: private object
  * @state: initial private object state
  * @funcs: pointer to the struct of function pointers that identify the object
@@ -968,14 +1032,18 @@ static void drm_atomic_plane_print_state(struct drm_printer *p,
  * driver private object that needs its own atomic state.
  */
 void
-drm_atomic_private_obj_init(struct drm_private_obj *obj,
+drm_atomic_private_obj_init(struct drm_device *dev,
+			    struct drm_private_obj *obj,
 			    struct drm_private_state *state,
 			    const struct drm_private_state_funcs *funcs)
 {
 	memset(obj, 0, sizeof(*obj));
 
+	drm_modeset_lock_init(&obj->lock);
+
 	obj->state = state;
 	obj->funcs = funcs;
+	list_add_tail(&obj->head, &dev->mode_config.privobj_list);
 }
 EXPORT_SYMBOL(drm_atomic_private_obj_init);
 
@@ -988,7 +1056,9 @@ EXPORT_SYMBOL(drm_atomic_private_obj_init);
 void
 drm_atomic_private_obj_fini(struct drm_private_obj *obj)
 {
+	list_del(&obj->head);
 	obj->funcs->atomic_destroy_state(obj, obj->state);
+	drm_modeset_lock_fini(&obj->lock);
 }
 EXPORT_SYMBOL(drm_atomic_private_obj_fini);
 
@@ -1009,7 +1079,7 @@ struct drm_private_state *
 drm_atomic_get_private_obj_state(struct drm_atomic_state *state,
 				 struct drm_private_obj *obj)
 {
-	int index, num_objs, i;
+	int index, num_objs, i, ret;
 	size_t size;
 	struct __drm_private_objs_state *arr;
 	struct drm_private_state *obj_state;
@@ -1017,6 +1087,10 @@ drm_atomic_get_private_obj_state(struct drm_atomic_state *state,
 	for (i = 0; i < state->num_private_objs; i++)
 		if (obj == state->private_objs[i].ptr)
 			return state->private_objs[i].state;
+
+	ret = drm_modeset_lock(&obj->lock, state->acquire_ctx);
+	if (ret)
+		return ERR_PTR(ret);
 
 	num_objs = state->num_private_objs + 1;
 	size = sizeof(*state->private_objs) * num_objs;
@@ -1036,6 +1110,7 @@ drm_atomic_get_private_obj_state(struct drm_atomic_state *state,
 	state->private_objs[index].old_state = obj->state;
 	state->private_objs[index].new_state = obj_state;
 	state->private_objs[index].ptr = obj;
+	obj_state->state = state;
 
 	state->num_private_objs = num_objs;
 
@@ -1045,6 +1120,50 @@ drm_atomic_get_private_obj_state(struct drm_atomic_state *state,
 	return obj_state;
 }
 EXPORT_SYMBOL(drm_atomic_get_private_obj_state);
+
+/**
+ * drm_atomic_get_old_private_obj_state
+ * @state: global atomic state object
+ * @obj: private_obj to grab
+ *
+ * This function returns the old private object state for the given private_obj,
+ * or NULL if the private_obj is not part of the global atomic state.
+ */
+struct drm_private_state *
+drm_atomic_get_old_private_obj_state(struct drm_atomic_state *state,
+				     struct drm_private_obj *obj)
+{
+	int i;
+
+	for (i = 0; i < state->num_private_objs; i++)
+		if (obj == state->private_objs[i].ptr)
+			return state->private_objs[i].old_state;
+
+	return NULL;
+}
+EXPORT_SYMBOL(drm_atomic_get_old_private_obj_state);
+
+/**
+ * drm_atomic_get_new_private_obj_state
+ * @state: global atomic state object
+ * @obj: private_obj to grab
+ *
+ * This function returns the new private object state for the given private_obj,
+ * or NULL if the private_obj is not part of the global atomic state.
+ */
+struct drm_private_state *
+drm_atomic_get_new_private_obj_state(struct drm_atomic_state *state,
+				     struct drm_private_obj *obj)
+{
+	int i;
+
+	for (i = 0; i < state->num_private_objs; i++)
+		if (obj == state->private_objs[i].ptr)
+			return state->private_objs[i].new_state;
+
+	return NULL;
+}
+EXPORT_SYMBOL(drm_atomic_get_new_private_obj_state)
 
 /**
  * drm_atomic_get_connector_state - get connector state
@@ -1124,6 +1243,91 @@ drm_atomic_get_connector_state(struct drm_atomic_state *state,
 	return connector_state;
 }
 EXPORT_SYMBOL(drm_atomic_get_connector_state);
+
+static void drm_atomic_connector_print_state(struct drm_printer *p,
+		const struct drm_connector_state *state)
+{
+	struct drm_connector *connector = state->connector;
+
+	drm_printf(p, "connector[%u]: %s\n", connector->base.id, connector->name);
+	drm_printf(p, "\tcrtc=%s\n", state->crtc ? state->crtc->name : "(null)");
+
+	if (connector->funcs->atomic_print_state)
+		connector->funcs->atomic_print_state(p, state);
+}
+
+/**
+ * drm_atomic_get_bridge_state - get bridge state
+ * @state: global atomic state object
+ * @bridge: bridge to get state object for
+ *
+ * This function returns the bridge state for the given bridge, allocating it
+ * if needed. It will also grab the relevant bridge lock to make sure that the
+ * state is consistent.
+ *
+ * Returns:
+ *
+ * Either the allocated state or the error code encoded into the pointer. When
+ * the error is EDEADLK then the w/w mutex code has detected a deadlock and the
+ * entire atomic sequence must be restarted.
+ */
+struct drm_bridge_state *
+drm_atomic_get_bridge_state(struct drm_atomic_state *state,
+			    struct drm_bridge *bridge)
+{
+	struct drm_private_state *obj_state;
+
+	obj_state = drm_atomic_get_private_obj_state(state, &bridge->base);
+	if (IS_ERR(obj_state))
+		return ERR_CAST(obj_state);
+
+	return drm_priv_to_bridge_state(obj_state);
+}
+EXPORT_SYMBOL(drm_atomic_get_bridge_state);
+
+/**
+ * drm_atomic_get_old_bridge_state - get old bridge state, if it exists
+ * @state: global atomic state object
+ * @bridge: bridge to grab
+ *
+ * This function returns the old bridge state for the given bridge, or NULL if
+ * the bridge is not part of the global atomic state.
+ */
+struct drm_bridge_state *
+drm_atomic_get_old_bridge_state(struct drm_atomic_state *state,
+				struct drm_bridge *bridge)
+{
+	struct drm_private_state *obj_state;
+
+	obj_state = drm_atomic_get_old_private_obj_state(state, &bridge->base);
+	if (!obj_state)
+		return NULL;
+
+	return drm_priv_to_bridge_state(obj_state);
+}
+EXPORT_SYMBOL(drm_atomic_get_old_bridge_state);
+
+/**
+ * drm_atomic_get_new_bridge_state - get new bridge state, if it exists
+ * @state: global atomic state object
+ * @bridge: bridge to grab
+ *
+ * This function returns the new bridge state for the given bridge, or NULL if
+ * the bridge is not part of the global atomic state.
+ */
+struct drm_bridge_state *
+drm_atomic_get_new_bridge_state(struct drm_atomic_state *state,
+				struct drm_bridge *bridge)
+{
+	struct drm_private_state *obj_state;
+
+	obj_state = drm_atomic_get_new_private_obj_state(state, &bridge->base);
+	if (!obj_state)
+		return NULL;
+
+	return drm_priv_to_bridge_state(obj_state);
+}
+EXPORT_SYMBOL(drm_atomic_get_new_bridge_state);
 
 /**
  * drm_atomic_connector_set_property - set property on connector.
@@ -1208,17 +1412,6 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 	return 0;
 }
 
-static void drm_atomic_connector_print_state(struct drm_printer *p,
-		const struct drm_connector_state *state)
-{
-	struct drm_connector *connector = state->connector;
-
-	drm_printf(p, "connector[%u]: %s\n", connector->base.id, connector->name);
-	drm_printf(p, "\tcrtc=%s\n", state->crtc ? state->crtc->name : "(null)");
-
-	if (connector->funcs->atomic_print_state)
-		connector->funcs->atomic_print_state(p, state);
-}
 
 /**
  * drm_atomic_connector_get_property - get property value from connector state

@@ -3,8 +3,6 @@
 #ifndef _DRM_WRITEBACK_H
 #define _DRM_WRITEBACK_H
 
-#if 0
-
 #include <drm/drm_connector.h>
 
 struct drm_writeback_connector {
@@ -44,7 +42,5 @@ drm_writeback_set_fb(struct drm_connector_state *cs, struct drm_framebuffer *fb)
 {
 	return 0;
 }
-
-#endif
 
 #endif

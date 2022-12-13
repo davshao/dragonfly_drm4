@@ -42,12 +42,16 @@ struct dma_fence;
 struct drm_file;
 struct drm_device;
 struct device;
+struct file;
 
 /*
  * FIXME: Not sure we want to have drm_minor here in the end, but to avoid
  * header include loops we need it here for now.
  */
 
+/* Note that the order of this enum is ABI (it determines
+ * /dev/dri/renderD* numbers).
+ */
 enum drm_minor_type {
 	DRM_MINOR_PRIMARY,
 	DRM_MINOR_CONTROL,
@@ -183,6 +187,32 @@ struct drm_file {
 	unsigned atomic:1;
 
 	/**
+	 * @aspect_ratio_allowed:
+	 *
+	 * True, if client can handle picture aspect ratios, and has requested
+	 * to pass this information along with the mode.
+	 */
+	bool aspect_ratio_allowed;
+
+	/**
+	 * @writeback_connectors:
+	 *
+	 * True if client understands writeback connectors
+	 */
+	bool writeback_connectors;
+
+	/**
+	 * @was_master:
+	 *
+	 * This client has or had, master capability. Protected by struct
+	 * &drm_device.master_mutex.
+	 *
+	 * This is used to ensure that CAP_SYS_ADMIN is not enforced, if the
+	 * client is or was master in the past.
+	 */
+	bool was_master;
+
+	/**
 	 * @is_master:
 	 *
 	 * This client is the creator of @master. Protected by struct
@@ -203,7 +233,33 @@ struct drm_file {
 	 * See also @authentication and @is_master and the :ref:`section on
 	 * primary nodes and authentication <drm_primary_node>`.
 	 */
+	/**
+	 * @master:
+	 *
+	 * Master this node is currently associated with. Protected by struct
+	 * &drm_device.master_mutex, and serialized by @master_lookup_lock.
+	 *
+	 * Only relevant if drm_is_primary_client() returns true. Note that
+	 * this only matches &drm_device.master if the master is the currently
+	 * active one.
+	 *
+	 * To update @master, both &drm_device.master_mutex and
+	 * @master_lookup_lock need to be held, therefore holding either of
+	 * them is safe and enough for the read side.
+	 *
+	 * When dereferencing this pointer, either hold struct
+	 * &drm_device.master_mutex for the duration of the pointer's use, or
+	 * use drm_file_get_master() if struct &drm_device.master_mutex is not
+	 * currently held and there is no other need to hold it. This prevents
+	 * @master from being freed during use.
+	 *
+	 * See also @authentication and @is_master and the :ref:`section on
+	 * primary nodes and authentication <drm_primary_node>`.
+	 */
 	struct drm_master *master;
+
+	/** @master_lock: Serializes @master. */
+	struct lock master_lookup_lock;
 
 	/** @pid: Process that opened this file. */
 	pid_t pid;
@@ -221,6 +277,8 @@ struct drm_file {
 
 	/** @minor: &struct drm_minor for this file. */
 	struct drm_minor *minor;
+
+	int fminor;
 
 	/**
 	 * @object_idr:

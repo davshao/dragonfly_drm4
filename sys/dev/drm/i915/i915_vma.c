@@ -29,6 +29,7 @@
 #include "intel_frontbuffer.h"
 
 #include <drm/drm_gem.h>
+#include <drm/drm_other_os.h>
 
 static void
 i915_vma_retire(struct i915_gem_active *active,

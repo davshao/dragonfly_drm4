@@ -24,6 +24,7 @@
  *          Alex Deucher
  */
 #include <drm/drmP.h>
+#include <drm/drm_sysctl.h>
 #include <drm/radeon_drm.h>
 #include "radeon.h"
 #include "radeon_asic.h"
