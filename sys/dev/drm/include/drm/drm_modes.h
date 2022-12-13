@@ -142,6 +142,23 @@ enum drm_mode_status {
 	.vscan = (vs), .flags = (f), \
 	.base.type = DRM_MODE_OBJECT_MODE
 
+/**
+ * DRM_SIMPLE_MODE - Simple display mode
+ * @hd: Horizontal resolution, width
+ * @vd: Vertical resolution, height
+ * @hd_mm: Display width in millimeters
+ * @vd_mm: Display height in millimeters
+ *
+ * This macro initializes a &drm_display_mode that only contains info about
+ * resolution and physical size.
+ */
+#define DRM_SIMPLE_MODE(hd, vd, hd_mm, vd_mm) \
+	.type = DRM_MODE_TYPE_DRIVER, .clock = 1 /* pass validation */, \
+	.hdisplay = (hd), .hsync_start = (hd), .hsync_end = (hd), \
+	.htotal = (hd), .vdisplay = (vd), .vsync_start = (vd), \
+	.vsync_end = (vd), .vtotal = (vd), .width_mm = (hd_mm), \
+	.height_mm = (vd_mm)
+
 #define CRTC_INTERLACE_HALVE_V	(1 << 0) /* halve V values for interlacing */
 #define CRTC_STEREO_DOUBLE	(1 << 1) /* adjust timings for stereo modes */
 #define CRTC_NO_DBLSCAN		(1 << 2) /* don't adjust doublescan */
@@ -149,6 +166,12 @@ enum drm_mode_status {
 #define CRTC_STEREO_DOUBLE_ONLY	(CRTC_STEREO_DOUBLE | CRTC_NO_DBLSCAN | CRTC_NO_VSCAN)
 
 #define DRM_MODE_FLAG_3D_MAX	DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF
+
+#define DRM_MODE_MATCH_TIMINGS (1 << 0)
+#define DRM_MODE_MATCH_CLOCK (1 << 1)
+#define DRM_MODE_MATCH_FLAGS (1 << 2)
+#define DRM_MODE_MATCH_3D_FLAGS (1 << 3)
+#define DRM_MODE_MATCH_ASPECT_RATIO (1 << 4)
 
 /**
  * struct drm_display_mode - DRM kernel-internal display mode structure
@@ -175,6 +198,9 @@ enum drm_mode_status {
  * @crtc_vsync_start: hardware mode vertical sync start
  * @crtc_vsync_end: hardware mode vertical sync end
  * @crtc_vtotal: hardware mode vertical total size
+ *
+ * This is the kernel API display mode information structure. For the
+ * user-space version see struct drm_mode_modeinfo.
  *
  * The horizontal and vertical timings are defined per the following diagram.
  *
@@ -203,71 +229,6 @@ enum drm_mode_status {
  * For printing you can use %DRM_MODE_FMT and DRM_MODE_ARG().
  */
 struct drm_display_mode {
-	/**
-	 * @head:
-	 *
-	 * struct list_head for mode lists.
-	 */
-	struct list_head head;
-
-	/**
-	 * @base:
-	 *
-	 * A display mode is a normal modeset object, possibly including public
-	 * userspace id.
-	 *
-	 * FIXME:
-	 *
-	 * This can probably be removed since the entire concept of userspace
-	 * managing modes explicitly has never landed in upstream kernel mode
-	 * setting support.
-	 */
-	struct drm_mode_object base;
-
-	/**
-	 * @name:
-	 *
-	 * Human-readable name of the mode, filled out with drm_mode_set_name().
-	 */
-	char name[DRM_DISPLAY_MODE_LEN];
-
-	/**
-	 * @status:
-	 *
-	 * Status of the mode, used to filter out modes not supported by the
-	 * hardware. See enum &drm_mode_status.
-	 */
-	enum drm_mode_status status;
-
-	/**
-	 * @type:
-	 *
-	 * A bitmask of flags, mostly about the source of a mode. Possible flags
-	 * are:
-	 *
-	 *  - DRM_MODE_TYPE_BUILTIN: Meant for hard-coded modes, effectively
-	 *    unused.
-	 *  - DRM_MODE_TYPE_PREFERRED: Preferred mode, usually the native
-	 *    resolution of an LCD panel. There should only be one preferred
-	 *    mode per connector at any given time.
-	 *  - DRM_MODE_TYPE_DRIVER: Mode created by the driver, which is all of
-	 *    them really. Drivers must set this bit for all modes they create
-	 *    and expose to userspace.
-	 *
-	 * Plus a big list of flags which shouldn't be used at all, but are
-	 * still around since these flags are also used in the userspace ABI:
-	 *
-	 *  - DRM_MODE_TYPE_DEFAULT: Again a leftover, use
-	 *    DRM_MODE_TYPE_PREFERRED instead.
-	 *  - DRM_MODE_TYPE_CLOCK_C and DRM_MODE_TYPE_CRTC_C: Define leftovers
-	 *    which are stuck around for hysterical raisins only. No one has an
-	 *    idea what they were meant for. Don't use.
-	 *  - DRM_MODE_TYPE_USERDEF: Mode defined by userspace, again a vestige
-	 *    from older kms designs where userspace had to first add a custom
-	 *    mode to the kernel's mode list before it could use it. Don't use.
-	 */
-	unsigned int type;
-
 	/**
 	 * @clock:
 	 *
@@ -318,23 +279,7 @@ struct drm_display_mode {
 	 *  - DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF: frame split into left and
 	 *    right parts.
 	 */
-	unsigned int flags;
-
-	/**
-	 * @width_mm:
-	 *
-	 * Addressable size of the output in mm, projectors should set this to
-	 * 0.
-	 */
-	int width_mm;
-
-	/**
-	 * @height_mm:
-	 *
-	 * Addressable size of the output in mm, projectors should set this to
-	 * 0.
-	 */
-	int height_mm;
+	u32 flags;
 
 	/**
 	 * @crtc_clock:
@@ -365,6 +310,107 @@ struct drm_display_mode {
 	int crtc_vsync_start;
 	int crtc_vsync_end;
 	int crtc_vtotal;
+
+	/**
+	 * @width_mm:
+	 *
+	 * Addressable size of the output in mm, projectors should set this to
+	 * 0.
+	 */
+	int width_mm;
+
+	/**
+	 * @height_mm:
+	 *
+	 * Addressable size of the output in mm, projectors should set this to
+	 * 0.
+	 */
+	int height_mm;
+
+	/**
+	 * @type:
+	 *
+	 * A bitmask of flags, mostly about the source of a mode. Possible flags
+	 * are:
+	 *
+	 *  - DRM_MODE_TYPE_BUILTIN: Meant for hard-coded modes, effectively
+	 *    unused.
+	 *  - DRM_MODE_TYPE_PREFERRED: Preferred mode, usually the native
+	 *    resolution of an LCD panel. There should only be one preferred
+	 *    mode per connector at any given time.
+	 *  - DRM_MODE_TYPE_DRIVER: Mode created by the driver, which is all of
+	 *    them really. Drivers must set this bit for all modes they create
+	 *    and expose to userspace.
+	 *
+	 * Plus a big list of flags which shouldn't be used at all, but are
+	 * still around since these flags are also used in the userspace ABI:
+	 *
+	 *  - DRM_MODE_TYPE_DEFAULT: Again a leftover, use
+	 *    DRM_MODE_TYPE_PREFERRED instead.
+	 *  - DRM_MODE_TYPE_CLOCK_C and DRM_MODE_TYPE_CRTC_C: Define leftovers
+	 *    which are stuck around for hysterical raisins only. No one has an
+	 *    idea what they were meant for. Don't use.
+	 *  - DRM_MODE_TYPE_USERDEF: Mode defined by userspace, again a vestige
+	 *    from older kms designs where userspace had to first add a custom
+	 *    mode to the kernel's mode list before it could use it. Don't use.
+	 */
+	unsigned int type;
+
+	/**
+	 * @expose_to_userspace:
+	 *
+	 * Indicates whether the mode is to be exposed to the userspace.
+	 * This is to maintain a set of exposed modes while preparing
+	 * user-mode's list in drm_mode_getconnector ioctl. The purpose of
+	 * this only lies in the ioctl function, and is not to be used
+	 * outside the function.
+	 */
+	bool expose_to_userspace;
+
+	/**
+	 * @head:
+	 *
+	 * struct list_head for mode lists.
+	 */
+	struct list_head head;
+
+	/**
+	 * @name:
+	 *
+	 * Human-readable name of the mode, filled out with drm_mode_set_name().
+	 */
+	char name[DRM_DISPLAY_MODE_LEN];
+
+	/**
+	 * @status:
+	 *
+	 * Status of the mode, used to filter out modes not supported by the
+	 * hardware. See enum &drm_mode_status.
+	 */
+	enum drm_mode_status status;
+
+	/**
+	 * @picture_aspect_ratio:
+	 *
+	 * Field for setting the HDMI picture aspect ratio of a mode.
+	 */
+	enum hdmi_picture_aspect picture_aspect_ratio;
+
+/* previous DragonFly */
+
+	/**
+	 * @base:
+	 *
+	 * A display mode is a normal modeset object, possibly including public
+	 * userspace id.
+	 *
+	 * FIXME:
+	 *
+	 * This can probably be removed since the entire concept of userspace
+	 * managing modes explicitly has never landed in upstream kernel mode
+	 * setting support.
+	 */
+	struct drm_mode_object base;
 
 	/**
 	 * @private:
@@ -402,13 +448,6 @@ struct drm_display_mode {
 	 * This value is in kHz.
 	 */
 	int hsync;
-
-	/**
-	 * @picture_aspect_ratio:
-	 *
-	 * Field for setting the HDMI picture aspect ratio of a mode.
-	 */
-	enum hdmi_picture_aspect picture_aspect_ratio;
 };
 
 /**

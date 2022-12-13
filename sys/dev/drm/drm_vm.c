@@ -28,6 +28,7 @@
  */
 
 #include <drm/drmP.h>
+#include <drm/drm_other_os.h>
 #include <linux/export.h>
 #include <linux/seq_file.h>
 #if defined(__ia64__)
@@ -86,11 +87,11 @@ drm_mmap(struct dev_mmap_args *ap)
 	   for performance, even if the list was a
 	   bit longer.
 	*/
-	DRM_LOCK(dev);
+	lockmgr(&(dev)->struct_mutex, LK_EXCLUSIVE);
 
 	if (drm_ht_find_item(&dev->map_hash, offset, &hash)) {
 		DRM_ERROR("Could not find map\n");
-		DRM_UNLOCK(dev);
+		lockmgr(&(dev)->struct_mutex, LK_RELEASE);
 		return -EINVAL;
 	}
 
@@ -98,17 +99,17 @@ drm_mmap(struct dev_mmap_args *ap)
 	if (map == NULL) {
 		DRM_DEBUG("Can't find map, request offset = %016jx\n",
 		    (uintmax_t)offset);
-		DRM_UNLOCK(dev);
+		lockmgr(&(dev)->struct_mutex, LK_RELEASE);
 		return -1;
 	}
 	if (((map->flags & _DRM_RESTRICTED) && !capable(CAP_SYS_ADMIN))) {
-		DRM_UNLOCK(dev);
+		lockmgr(&(dev)->struct_mutex, LK_RELEASE);
 		DRM_DEBUG("restricted map\n");
 		return -1;
 	}
 
 	type = map->type;
-	DRM_UNLOCK(dev);
+	lockmgr(&(dev)->struct_mutex, LK_RELEASE);
 
 	switch (type) {
 	case _DRM_FRAME_BUFFER:

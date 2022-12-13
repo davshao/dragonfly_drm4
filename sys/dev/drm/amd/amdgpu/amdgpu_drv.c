@@ -23,6 +23,7 @@
  */
 
 #include <drm/drmP.h>
+#include <drm/drm_other_os.h>
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_gem.h>
 #include "amdgpu_drv.h"

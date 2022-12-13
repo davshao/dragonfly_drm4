@@ -24,6 +24,7 @@
  *          Alex Deucher
  */
 #include <drm/drmP.h>
+#include <drm/drm_sysctl.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"

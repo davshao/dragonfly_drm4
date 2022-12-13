@@ -34,6 +34,9 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/kref.h>
+#include <linux/dma-resv.h>
+
 #include <drm/drm_hashtab.h>
 
 /* BSD specific gem helpers. */
@@ -45,9 +48,152 @@
 #define	DRM_GEM_MAPPING_MAPOFF(o) \
     ((o) & ~(DRM_GEM_MAPPING_OFF(DRM_GEM_MAX_IDX) | DRM_GEM_MAPPING_KEY))
 
-#include <linux/kref.h>
+// #include <linux/kref.h>
 
 #include <drm/drm_vma_manager.h>
+
+struct dma_buf_map;
+struct drm_gem_object;
+
+/**
+ * struct drm_gem_object_funcs - GEM object functions
+ */
+struct drm_gem_object_funcs {
+	/**
+	 * @free:
+	 *
+	 * Deconstructor for drm_gem_objects.
+	 *
+	 * This callback is mandatory.
+	 */
+	void (*free)(struct drm_gem_object *obj);
+
+	/**
+	 * @open:
+	 *
+	 * Called upon GEM handle creation.
+	 *
+	 * This callback is optional.
+	 */
+	int (*open)(struct drm_gem_object *obj, struct drm_file *file);
+
+	/**
+	 * @close:
+	 *
+	 * Called upon GEM handle release.
+	 *
+	 * This callback is optional.
+	 */
+	void (*close)(struct drm_gem_object *obj, struct drm_file *file);
+
+	/**
+	 * @print_info:
+	 *
+	 * If driver subclasses struct &drm_gem_object, it can implement this
+	 * optional hook for printing additional driver specific info.
+	 *
+	 * drm_printf_indent() should be used in the callback passing it the
+	 * indent argument.
+	 *
+	 * This callback is called from drm_gem_print_info().
+	 *
+	 * This callback is optional.
+	 */
+	void (*print_info)(struct drm_printer *p, unsigned int indent,
+			   const struct drm_gem_object *obj);
+
+	/**
+	 * @export:
+	 *
+	 * Export backing buffer as a &dma_buf.
+	 * If this is not set drm_gem_prime_export() is used.
+	 *
+	 * This callback is optional.
+	 */
+	struct dma_buf *(*export)(struct drm_gem_object *obj, int flags);
+
+	/**
+	 * @pin:
+	 *
+	 * Pin backing buffer in memory. Used by the drm_gem_map_attach() helper.
+	 *
+	 * This callback is optional.
+	 */
+	int (*pin)(struct drm_gem_object *obj);
+
+	/**
+	 * @unpin:
+	 *
+	 * Unpin backing buffer. Used by the drm_gem_map_detach() helper.
+	 *
+	 * This callback is optional.
+	 */
+	void (*unpin)(struct drm_gem_object *obj);
+
+	/**
+	 * @get_sg_table:
+	 *
+	 * Returns a Scatter-Gather table representation of the buffer.
+	 * Used when exporting a buffer by the drm_gem_map_dma_buf() helper.
+	 * Releasing is done by calling dma_unmap_sg_attrs() and sg_free_table()
+	 * in drm_gem_unmap_buf(), therefore these helpers and this callback
+	 * here cannot be used for sg tables pointing at driver private memory
+	 * ranges.
+	 *
+	 * See also drm_prime_pages_to_sg().
+	 */
+	struct sg_table *(*get_sg_table)(struct drm_gem_object *obj);
+
+	/**
+	 * @vmap:
+	 *
+	 * Returns a virtual address for the buffer. Used by the
+	 * drm_gem_dmabuf_vmap() helper.
+	 *
+	 * This callback is optional.
+	 */
+	int (*vmap)(struct drm_gem_object *obj, struct dma_buf_map *map);
+
+	/**
+	 * @vunmap:
+	 *
+	 * Releases the address previously returned by @vmap. Used by the
+	 * drm_gem_dmabuf_vunmap() helper.
+	 *
+	 * This callback is optional.
+	 */
+	void (*vunmap)(struct drm_gem_object *obj, struct dma_buf_map *map);
+
+	/**
+	 * @mmap:
+	 *
+	 * Handle mmap() of the gem object, setup vma accordingly.
+	 *
+	 * This callback is optional.
+	 *
+	 * The callback is used by both drm_gem_mmap_obj() and
+	 * drm_gem_prime_mmap().  When @mmap is present @vm_ops is not
+	 * used, the @mmap callback must set vma->vm_ops instead.
+	 */
+#if defined(__linux__) || defined(__DragonFly__)
+	int (*mmap)(struct drm_gem_object *obj, struct vm_area_struct *vma);
+#else
+	int (*mmap)(struct drm_gem_object *, vm_prot_t, voff_t, vsize_t);
+#endif
+
+	/**
+	 * @vm_ops:
+	 *
+	 * Virtual memory operations used with mmap.
+	 *
+	 * This is optional but necessary for mmap support.
+	 */
+#ifdef __linux__
+	const struct vm_operations_struct *vm_ops;
+#elif defined(__OpenBSD__)
+	const struct uvm_pagerops *vm_ops;
+#endif
+};
 
 /**
  * struct drm_gem_object - GEM buffer object
@@ -58,6 +204,13 @@
  * Buffer objects are often abbreviated to BO.
  */
 struct drm_gem_object {
+#if defined(__OpenBSD__)
+	/*
+	 * This must be first as uobj is cast to ttm_buffer_object for
+	 * radeon_ttm_fault() the first member of that struct is drm_gem_object
+	 */
+	struct uvm_object uobj;
+#endif
 	/**
 	 * @refcount:
 	 *
@@ -97,7 +250,7 @@ struct drm_gem_object {
 	 */
 #ifdef __DragonFly__
 	struct vm_object *filp;
-#else
+#elif defined(__linux__)
 	struct file *filp;
 #endif
 
@@ -112,10 +265,7 @@ struct drm_gem_object {
 	 * that userspace is allowed to access the object.
 	 */
 	struct drm_vma_offset_node vma_node;
-#ifdef __DragonFly__
-	bool on_map;
-	struct drm_hash_item map_list;
-#endif
+
 
 	/**
 	 * @size:
@@ -133,21 +283,6 @@ struct drm_gem_object {
 	 * the GEM_FLINK and GEM_OPEN ioctls.
 	 */
 	int name;
-
-	/**
-	 * @read_domains:
-	 *
-	 * Read memory domains. These monitor which caches contain read/write data
-	 * related to the object. When transitioning from one set of domains
-	 * to another, the driver is called to ensure that caches are suitably
-	 * flushed and invalidated.
-	 */
-	uint32_t read_domains;
-
-	/**
-	 * @write_domain: Corresponding unique write memory domain.
-	 */
-	uint32_t write_domain;
 
 	/**
 	 * @dma_buf:
@@ -180,6 +315,58 @@ struct drm_gem_object {
 	 * simply leave it as NULL.
 	 */
 	struct dma_buf_attachment *import_attach;
+
+	/**
+	 * @resv:
+	 *
+	 * Pointer to reservation object associated with the this GEM object.
+	 *
+	 * Normally (@resv == &@_resv) except for imported GEM objects.
+	 */
+	struct dma_resv *resv;
+
+	/**
+	 * @_resv:
+	 *
+	 * A reservation object for this GEM object.
+	 *
+	 * This is unused for imported GEM objects.
+	 */
+	struct dma_resv _resv;
+
+	/**
+	 * @funcs:
+	 *
+	 * Optional GEM object functions. If this is set, it will be used instead of the
+	 * corresponding &drm_driver GEM callbacks.
+	 *
+	 * New drivers should use this.
+	 *
+	 */
+	const struct drm_gem_object_funcs *funcs;
+
+#ifdef __DragonFly__
+	bool on_map;
+	struct drm_hash_item map_list;
+#elif defined(__OpenBSD__)
+	SPLAY_ENTRY(drm_gem_object) entry;
+	struct uvm_object *uao;
+#endif
+
+	/**
+	 * @read_domains:
+	 *
+	 * Read memory domains. These monitor which caches contain read/write data
+	 * related to the object. When transitioning from one set of domains
+	 * to another, the driver is called to ensure that caches are suitably
+	 * flushed and invalidated.
+	 */
+	uint32_t read_domains;
+
+	/**
+	 * @write_domain: Corresponding unique write memory domain.
+	 */
+	uint32_t write_domain;
 };
 
 /**
@@ -320,13 +507,43 @@ void drm_gem_free_mmap_offset(struct drm_gem_object *obj);
 int drm_gem_create_mmap_offset(struct drm_gem_object *obj);
 int drm_gem_create_mmap_offset_size(struct drm_gem_object *obj, size_t size);
 
+#if defined(__linux__) || defined(__DragonFly__)
 struct page **drm_gem_get_pages(struct drm_gem_object *obj);
 void drm_gem_put_pages(struct drm_gem_object *obj, struct page **pages,
 		bool dirty, bool accessed);
+#else
+struct vm_page **drm_gem_get_pages(struct drm_gem_object *obj);
+void drm_gem_put_pages(struct drm_gem_object *obj, struct vm_page **pages,
+		bool dirty, bool accessed);
+#endif
 
+int drm_gem_objects_lookup(struct drm_file *filp, void __user *bo_handles,
+			   int count, struct drm_gem_object ***objs_out);
 struct drm_gem_object *drm_gem_object_lookup(struct drm_file *filp, u32 handle);
+
+long drm_gem_dma_resv_wait(struct drm_file *filep, u32 handle,
+				    bool wait_all, unsigned long timeout);
+int drm_gem_lock_reservations(struct drm_gem_object **objs, int count,
+			      struct ww_acquire_ctx *acquire_ctx);
+void drm_gem_unlock_reservations(struct drm_gem_object **objs, int count,
+				 struct ww_acquire_ctx *acquire_ctx);
+
+#ifdef notyet
+int drm_gem_fence_array_add(struct xarray *fence_array,
+			    struct dma_fence *fence);
+int drm_gem_fence_array_add_implicit(struct xarray *fence_array,
+				     struct drm_gem_object *obj,
+				     bool write);
+#endif
+
 int drm_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
 			    u32 handle, u64 *offset);
+
+#if defined(__OpenBSD__)
+void drm_ref(struct uvm_object *);
+void drm_unref(struct uvm_object *);
+#endif
+
 int drm_gem_dumb_destroy(struct drm_file *file,
 			 struct drm_device *dev,
 			 uint32_t handle);

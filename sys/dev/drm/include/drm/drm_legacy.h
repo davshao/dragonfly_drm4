@@ -1,8 +1,6 @@
 #ifndef __DRM_DRM_LEGACY_H__
 #define __DRM_DRM_LEGACY_H__
 
-#include <drm/drm_auth.h>
-
 /*
  * Legacy driver interfaces for the Direct Rendering Manager
  *
@@ -36,6 +34,16 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/agp_backend.h>
+
+#include <drm/drm.h>
+#include <drm/drm_auth.h>
+#include <drm/drm_hashtab.h>
+
+struct drm_device;
+struct drm_driver;
+struct file;
+struct pci_driver;
 
 /*
  * Legacy Support for palateontologic DRM drivers
@@ -131,7 +139,7 @@ struct drm_sg_mem {
  * Kernel side of a mapping
  */
 struct drm_local_map {
-	resource_size_t offset;	 /**< Requested physical address (0 for SAREA)*/
+	dma_addr_t offset;	 /**< Requested physical address (0 for SAREA)*/
 	unsigned long size;	 /**< Requested physical size (bytes) */
 	enum drm_map_type type;	 /**< Type of memory to map */
 	enum drm_map_flags flags;	 /**< Flags */

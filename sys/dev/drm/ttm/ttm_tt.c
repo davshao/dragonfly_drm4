@@ -39,6 +39,7 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <drm/drm_cache.h>
+#include <drm/drm_other_os.h>
 #include <drm/ttm/ttm_module.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_placement.h>
