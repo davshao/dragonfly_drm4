@@ -26,7 +26,12 @@
 
 #include <sys/libkern.h>
 #include <sys/ctype.h>
+
+#include <linux/pci.h>
+
 #include <drm/drmP.h>
+#include <drm/drm_sysctl.h>
+#include <drm/drm_other_os.h>
 
 /*
  * An implementation of fb_get_options()
@@ -189,14 +194,14 @@ static int drm_alloc_resource(struct drm_device *dev, int resource)
 		return 0;
 	}
 
-	DRM_UNLOCK(dev);
+	lockmgr(&(dev)->struct_mutex, LK_RELEASE);
 	rid = PCIR_BAR(resource);
 	res = bus_alloc_resource_any(dev->dev->bsddev, SYS_RES_MEMORY, &rid,
 	    RF_SHAREABLE);
-	DRM_LOCK(dev);
+	lockmgr(&(dev)->struct_mutex, LK_EXCLUSIVE);
 	if (res == NULL) {
 		DRM_ERROR("Couldn't find resource 0x%x\n", resource);
-		DRM_UNLOCK(dev);
+		lockmgr(&(dev)->struct_mutex, LK_RELEASE);
 		return 1;
 	}
 
@@ -257,9 +262,9 @@ int drm_device_detach(device_t kdev)
 	}
 
 	if (dev->driver->unload != NULL) {
-		DRM_LOCK(dev);
+		lockmgr(&(dev)->struct_mutex, LK_EXCLUSIVE);
 		dev->driver->unload(dev);
-		DRM_UNLOCK(dev);
+		lockmgr(&(dev)->struct_mutex, LK_RELEASE);
 	}
 
 	if (pci_disable_busmaster(dev->dev->bsddev))
@@ -271,4 +276,9 @@ int drm_device_detach(device_t kdev)
 #endif
 
 	return 0;
+}
+
+int drm_pci_device_is_agp(struct drm_device *dev)
+{
+	return (pci_find_extcap(dev->pdev->dev.bsddev, PCIY_AGP, NULL) == 0);
 }

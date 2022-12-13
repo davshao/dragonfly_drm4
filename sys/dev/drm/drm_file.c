@@ -34,21 +34,63 @@
 #include <sys/types.h>
 #include <sys/uio.h>	/* must come first to avoid kfree() macros issues */
 
+#include <linux/anon_inodes.h>
+#include <linux/dma-fence.h>
+#include <linux/file.h>
+#include <linux/module.h>
+#include <linux/pci.h>
 #include <linux/poll.h>
 #include <linux/slab.h>
-#include <linux/module.h>
 
+#include <drm/drm_client.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_file.h>
-#include <drm/drmP.h>
+#include <drm/drm_print.h>
+// #include <drm/drmP.h>
+#include <drm/drm_irq.h>
+#include <drm/drm_bridge.h>
+#include <drm/drm_agpsupport.h>
+#include <drm/drm_other_os.h>
 
-#include "drm_legacy.h"
-#include "drm_internal.h"
 #include "drm_crtc_internal.h"
+#include "drm_internal.h"
+#include "drm_legacy.h"
 
 static void drm_events_release(struct drm_file *file_priv);
 
 /* from BKL pushdown */
 DEFINE_MUTEX(drm_global_mutex);
+
+bool drm_dev_needs_global_mutex(struct drm_device *dev)
+{
+	/*
+	 * Legacy drivers rely on all kinds of BKL locking semantics, don't
+	 * bother. They also still need BKL locking for their ioctls, so better
+	 * safe than sorry.
+	 */
+	if (drm_core_check_feature(dev, DRIVER_LEGACY))
+		return true;
+
+	/*
+	 * The deprecated ->load callback must be called after the driver is
+	 * already registered. This means such drivers rely on the BKL to make
+	 * sure an open can't proceed until the driver is actually fully set up.
+	 * Similar hilarity holds for the unload callback.
+	 */
+	if (dev->driver->load || dev->driver->unload)
+		return true;
+
+	/*
+	 * Drivers with the lastclose callback assume that it's synchronized
+	 * against concurrent opens, which again needs the BKL. The proper fix
+	 * is to use the drm_client infrastructure with proper locking for each
+	 * client.
+	 */
+	if (dev->driver->lastclose)
+		return true;
+
+	return false;
+}
 
 /**
  * DOC: file operations
@@ -341,6 +383,7 @@ static int drm_open_helper(struct cdev *kdev, int flags,
 	init_waitqueue_head(&priv->event_wait);
 	priv->event_space = 4096; /* set aside 4k for event buffer */
 
+	lockinit(&priv->master_lookup_lock, "dfmll", 0, LK_CANRECURSE);
 	lockinit(&priv->event_read_lock, "dperl", 0, LK_CANRECURSE);
 
 	if (drm_core_check_feature(dev, DRIVER_GEM))

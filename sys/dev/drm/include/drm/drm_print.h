@@ -384,12 +384,12 @@ static inline bool drm_debug_enabled(enum drm_debug_category category)
  *
  * Prefer drm_device based logging over device or printk based logging.
  */
+
 #ifdef __DragonFly__
 extern __printf(2, 3)
 void drm_ut_debug_printk(const char *function_name,
 			 const char *format, ...);
-extern __printf(2, 3)
-void drm_err(const char *func, const char *format, ...);
+
 #endif
 
 #if defined(__OpenBSD__) /* declared in drm_drv.h different from this */
@@ -398,8 +398,8 @@ void drm_dev_printk(const struct device *dev, const char *level,
 		    const char *format, ...);
 #else
 void drm_dev_printk(const struct device *dev, const char *level,
-		    unsigned int category, const char *function_name,
-		    const char *prefix, const char *format, ...);
+		    unsigned int category, const char *function_name, const char *prefix,
+		    const char *format, ...);
 void drm_printk(const char *level, unsigned int category,
 		const char *format, ...);
 #endif
@@ -407,6 +407,141 @@ void drm_printk(const char *level, unsigned int category,
 __printf(3, 4)
 void drm_dev_dbg(const struct device *dev, enum drm_debug_category category,
 		 const char *format, ...);
+
+/**
+ * DRM_DEV_ERROR() - Error output.
+ *
+ * @dev: device pointer
+ * @fmt: printf() like format string.
+ */
+#define DRM_DEV_ERROR(dev, fmt, ...)					\
+	drm_dev_printk(dev, KERN_ERR, DRM_UT_NONE, __func__, " *ERROR*",\
+		       fmt, ##__VA_ARGS__)
+
+/**
+ * Rate limited error output.  Like DRM_ERROR() but won't flood the log.
+ *
+ * \param fmt printf() like format string.
+ * \param arg arguments
+ */
+#define DRM_DEV_ERROR_RATELIMITED(dev, fmt, ...)			\
+({									\
+	static DEFINE_RATELIMIT_STATE(_rs,				\
+				      DEFAULT_RATELIMIT_INTERVAL,	\
+				      DEFAULT_RATELIMIT_BURST);		\
+									\
+	if (__ratelimit(&_rs))						\
+		DRM_DEV_ERROR(dev, fmt, ##__VA_ARGS__);			\
+})
+
+#define DRM_DEV_INFO(dev, fmt, ...)					\
+	drm_dev_printk(dev, KERN_INFO, DRM_UT_NONE, __func__, "", fmt,	\
+		       ##__VA_ARGS__)
+
+#define DRM_DEV_INFO_ONCE(dev, fmt, ...)				\
+({									\
+	static bool __print_once __read_mostly;				\
+	if (!__print_once) {						\
+		__print_once = true;					\
+		DRM_DEV_INFO(dev, fmt, ##__VA_ARGS__);			\
+	}								\
+})
+
+/**
+ * DRM_DEV_DEBUG() - Debug output for generic drm code
+ *
+ * @dev: device pointer
+ * @fmt: printf() like format string.
+ */
+#define DRM_DEV_DEBUG(dev, fmt, args...)				\
+	drm_dev_printk(dev, KERN_DEBUG, DRM_UT_CORE, __func__, "", fmt,	\
+		       ##args)
+/**
+ * DRM_DEV_DEBUG_DRIVER() - Debug output for vendor specific part of the driver
+ *
+ * @dev: device pointer
+ * @fmt: printf() like format string.
+ */
+#define DRM_DEV_DEBUG_DRIVER(dev, fmt, args...)				\
+	drm_dev_printk(dev, KERN_DEBUG, DRM_UT_DRIVER, __func__, "",	\
+		       fmt, ##args)
+/**
+ * DRM_DEV_DEBUG_KMS() - Debug output for modesetting code
+ *
+ * @dev: device pointer
+ * @fmt: printf() like format string.
+ */
+#define DRM_DEV_DEBUG_KMS(dev, fmt, args...)				\
+	drm_dev_printk(dev, KERN_DEBUG, DRM_UT_KMS, __func__, "", fmt,	\
+		       ##args)
+
+/*
+ * struct drm_device based logging
+ *
+ * Prefer drm_device based logging over device or prink based logging.
+ */
+
+/* Helper for struct drm_device based logging. */
+
+#define __drm_printk(drm, level, type, fmt, ...)			\
+	dev_##level##type((drm)->dev, "[drm] " fmt, ##__VA_ARGS__)
+
+
+#define drm_info(drm, fmt, ...)					\
+	__drm_printk((drm), info,, fmt, ##__VA_ARGS__)
+
+#define drm_notice(drm, fmt, ...)				\
+	__drm_printk((drm), notice,, fmt, ##__VA_ARGS__)
+
+#define drm_warn(drm, fmt, ...)					\
+	__drm_printk((drm), warn,, fmt, ##__VA_ARGS__)
+
+#if defined(__OpenBSD__)
+#define drm_err(drm, fmt, ...)					\
+	__drm_printk((drm), err,, "*ERROR* " fmt, ##__VA_ARGS__)
+#else
+extern __printf(2, 3)
+void drm_err(const char *func, const char *format, ...);
+#endif
+
+
+#define drm_info_once(drm, fmt, ...)				\
+	__drm_printk((drm), info, _once, fmt, ##__VA_ARGS__)
+
+#define drm_notice_once(drm, fmt, ...)				\
+	__drm_printk((drm), notice, _once, fmt, ##__VA_ARGS__)
+
+#define drm_warn_once(drm, fmt, ...)				\
+	__drm_printk((drm), warn, _once, fmt, ##__VA_ARGS__)
+
+#define drm_err_once(drm, fmt, ...)				\
+	__drm_printk((drm), err, _once, "*ERROR* " fmt, ##__VA_ARGS__)
+
+
+#define drm_err_ratelimited(drm, fmt, ...)				\
+	__drm_printk((drm), err, _ratelimited, "*ERROR* " fmt, ##__VA_ARGS__)
+
+
+#define drm_dbg_core(drm, fmt, ...)					\
+	drm_dev_dbg((drm) ? (drm)->dev : NULL, DRM_UT_CORE, fmt, ##__VA_ARGS__)
+#define drm_dbg(drm, fmt, ...)						\
+	drm_dev_dbg((drm) ? (drm)->dev : NULL, DRM_UT_DRIVER, fmt, ##__VA_ARGS__)
+#define drm_dbg_kms(drm, fmt, ...)					\
+	drm_dev_dbg((drm) ? (drm)->dev : NULL, DRM_UT_KMS, fmt, ##__VA_ARGS__)
+#define drm_dbg_prime(drm, fmt, ...)					\
+	drm_dev_dbg((drm) ? (drm)->dev : NULL, DRM_UT_PRIME, fmt, ##__VA_ARGS__)
+#define drm_dbg_atomic(drm, fmt, ...)					\
+	drm_dev_dbg((drm) ? (drm)->dev : NULL, DRM_UT_ATOMIC, fmt, ##__VA_ARGS__)
+#define drm_dbg_vbl(drm, fmt, ...)					\
+	drm_dev_dbg((drm) ? (drm)->dev : NULL, DRM_UT_VBL, fmt, ##__VA_ARGS__)
+#define drm_dbg_state(drm, fmt, ...)					\
+	drm_dev_dbg((drm) ? (drm)->dev : NULL, DRM_UT_STATE, fmt, ##__VA_ARGS__)
+#define drm_dbg_lease(drm, fmt, ...)					\
+	drm_dev_dbg((drm) ? (drm)->dev : NULL, DRM_UT_LEASE, fmt, ##__VA_ARGS__)
+#define drm_dbg_dp(drm, fmt, ...)					\
+	drm_dev_dbg((drm) ? (drm)->dev : NULL, DRM_UT_DP, fmt, ##__VA_ARGS__)
+#define drm_dbg_drmres(drm, fmt, ...)					\
+	drm_dev_dbg((drm) ? (drm)->dev : NULL, DRM_UT_DRMRES, fmt, ##__VA_ARGS__)
 
 /*
  * printk based logging
@@ -438,108 +573,86 @@ void __drm_err(const char *format, ...);
 #define DRM_WARN_ONCE(fmt, ...)						\
 	_DRM_PRINTK(_once, WARNING, fmt, ##__VA_ARGS__)
 
-/**
- * Error output.
- *
- * \param fmt printf() like format string.
- * \param arg arguments
- */
-#define DRM_DEV_ERROR(dev, fmt, ...)					\
-	drm_dev_printk(dev, KERN_ERR, DRM_UT_NONE, __func__, " *ERROR*",\
-		       fmt, ##__VA_ARGS__)
+#if defined(__OpenBSD__)
+#define DRM_ERROR(fmt, ...)						\
+	__drm_err(fmt, ##__VA_ARGS__)
+#else
 #define DRM_ERROR(fmt, ...)						\
 	drm_err(__func__, fmt, ##__VA_ARGS__)
+#endif
 
-/**
- * Rate limited error output.  Like DRM_ERROR() but won't flood the log.
- *
- * \param fmt printf() like format string.
- * \param arg arguments
- */
-#define DRM_DEV_ERROR_RATELIMITED(dev, fmt, ...)			\
-({									\
-	static DEFINE_RATELIMIT_STATE(_rs,				\
-				      DEFAULT_RATELIMIT_INTERVAL,	\
-				      DEFAULT_RATELIMIT_BURST);		\
-									\
-	if (__ratelimit(&_rs))						\
-		DRM_DEV_ERROR(dev, fmt, ##__VA_ARGS__);			\
-})
 #define DRM_ERROR_RATELIMITED(fmt, ...)					\
 	DRM_DEV_ERROR_RATELIMITED(NULL, fmt, ##__VA_ARGS__)
 
-#define DRM_DEV_INFO(dev, fmt, ...)					\
-	drm_dev_printk(dev, KERN_INFO, DRM_UT_NONE, __func__, "", fmt,	\
-		       ##__VA_ARGS__)
-
-#define DRM_DEV_INFO_ONCE(dev, fmt, ...)				\
-({									\
-	static bool __print_once __read_mostly;				\
-	if (!__print_once) {						\
-		__print_once = true;					\
-		DRM_DEV_INFO(dev, fmt, ##__VA_ARGS__);			\
-	}								\
-})
-
-/**
- * Debug output.
- *
- * \param fmt printf() like format string.
- * \param arg arguments
- */
-#define DRM_DEV_DEBUG(dev, fmt, args...)				\
-	drm_dev_printk(dev, KERN_DEBUG, DRM_UT_CORE, __func__, "", fmt,	\
-		       ##args)
-#define DRM_DEBUG(fmt, args...)						\
+#if defined(__OpenBSD__)
+#define DRM_DEBUG(fmt, ...)						\
+	__drm_dbg(DRM_UT_CORE, fmt, ##__VA_ARGS__)
+#else
+#define DRM_DEBUG(fmt, ...)						\
 	do {								\
 		if (unlikely(drm_debug & DRM_UT_CORE))			\
-			drm_ut_debug_printk(__func__, fmt, ##args);	\
+			drm_ut_debug_printk(__func__, fmt, ##__VA_ARGS__);	\
 	} while (0)
+#endif
 
-#define DRM_DEV_DEBUG_DRIVER(dev, fmt, args...)				\
-	drm_dev_printk(dev, KERN_DEBUG, DRM_UT_DRIVER, __func__, "",	\
-		       fmt, ##args)
-#define DRM_DEBUG_DRIVER(fmt, args...)					\
+#define DRM_DEBUG_DRIVER(fmt, ...)					\
 	do {								\
 		if (unlikely(drm_debug & DRM_UT_DRIVER))		\
-			drm_ut_debug_printk(__func__, fmt, ##args);	\
+			drm_ut_debug_printk(__func__, fmt, ##__VA_ARGS__);	\
 	} while (0)
 
-#define DRM_DEV_DEBUG_KMS(dev, fmt, args...)				\
-	drm_dev_printk(dev, KERN_DEBUG, DRM_UT_KMS, __func__, "", fmt,	\
-		       ##args)
-#define DRM_DEBUG_KMS(fmt, args...)					\
+
+#define DRM_DEBUG_KMS(fmt, ...)					\
 	do {								\
 		if (unlikely(drm_debug & DRM_UT_KMS))			\
-			drm_ut_debug_printk(__func__, fmt, ##args);	\
+			drm_ut_debug_printk(__func__, fmt, ##__VA_ARGS__);	\
 	} while (0)
 
-#define DRM_DEV_DEBUG_PRIME(dev, fmt, args...)				\
-	drm_dev_printk(dev, KERN_DEBUG, DRM_UT_PRIME, __func__, "",	\
-		       fmt, ##args)
-#define DRM_DEBUG_PRIME(fmt, args...)					\
+#define DRM_DEBUG_PRIME(fmt, ...)					\
 	do {								\
 		if (unlikely(drm_debug & DRM_UT_PRIME))			\
-			drm_ut_debug_printk(__func__, fmt, ##args);	\
+			drm_ut_debug_printk(__func__, fmt, ##__VA_ARGS__);	\
 	} while (0)
 
-#define DRM_DEV_DEBUG_ATOMIC(dev, fmt, args...)				\
-	drm_dev_printk(dev, KERN_DEBUG, DRM_UT_ATOMIC, __func__, "",	\
-		       fmt, ##args)
 #define DRM_DEBUG_ATOMIC(fmt, ...)						\
 	do {									\
 		if (unlikely(drm_debug & DRM_UT_ATOMIC))			\
 			drm_ut_debug_printk(__func__, fmt, ##__VA_ARGS__);	\
 	} while(0)
 
-#define DRM_DEV_DEBUG_VBL(dev, fmt, args...)				\
-	drm_dev_printk(dev, KERN_DEBUG, DRM_UT_VBL, __func__, "", fmt,	\
-		       ##args)
 #define DRM_DEBUG_VBL(fmt, args...)					\
 	do {								\
 		if (unlikely(drm_debug & DRM_UT_VBL))			\
 			drm_ut_debug_printk(__func__, fmt, ##args);	\
 	} while (0)
+
+#define DRM_DEBUG_LEASE(fmt, ...)					\
+	drm_printk(KERN_DEBUG, DRM_UT_LEASE, fmt, ##__VA_ARGS__)
+
+#define DRM_DEBUG_DP(fmt, ...)					\
+	drm_printk(KERN_DEBUG, DRM_UT_DP, fmt, ##__VA_ARGS__)
+
+#define drm_dbg_kms_ratelimited(drm, fmt, ...)			\
+	drm_dev_printk(drm ? drm->dev : NULL,			\
+		       KERN_DEBUG, DRM_UT_KMS, __func__, "",	\
+		       fmt, ##__VA_ARGS__)
+
+#if defined(__OpenBSD__)
+#define DRM_DEBUG_KMS_RATELIMITED(fmt, ...) drm_dbg_kms_ratelimited(NULL, fmt, ## __VA_ARGS__)
+#endif
+
+/* previous DragonFly */
+#define DRM_DEV_DEBUG_PRIME(dev, fmt, ...)				\
+	drm_dev_printk(dev, KERN_DEBUG, DRM_UT_PRIME, __func__, "",	\
+		       fmt, ##__VA_ARGS__)
+
+#define DRM_DEV_DEBUG_ATOMIC(dev, fmt, ...)				\
+	drm_dev_printk(dev, KERN_DEBUG, DRM_UT_ATOMIC, __func__, "",	\
+		       fmt, ##__VA_ARGS__)
+
+#define DRM_DEV_DEBUG_VBL(dev, fmt, ...)				\
+	drm_dev_printk(dev, KERN_DEBUG, DRM_UT_VBL, __func__, "", fmt,	\
+		       ##__VA_ARGS__)
 
 #ifdef __DragonFly__
 #define DRM_DEBUG_FIOCTL(fmt, args...)					\
@@ -554,9 +667,6 @@ void __drm_err(const char *format, ...);
 	} while (0)
 #define DRM_DEBUG_VBLANK	DRM_DEBUG_VBL
 #endif	/* __DragonFly__ */
-
-#define DRM_DEBUG_LEASE(fmt, ...)					\
-	drm_printk(KERN_DEBUG, DRM_UT_LEASE, fmt, ##__VA_ARGS__)
 
 #define _DRM_DEV_DEFINE_DEBUG_RATELIMITED(dev, level, fmt, args...)	\
 ({									\
@@ -590,5 +700,34 @@ void __drm_err(const char *format, ...);
 	_DRM_DEV_DEFINE_DEBUG_RATELIMITED(dev, PRIME, fmt, ##args)
 #define DRM_DEBUG_PRIME_RATELIMITED(fmt, args...)			\
 	DRM_DEV_DEBUG_PRIME_RATELIMITED(NULL, fmt, ##args)
+
+/*
+ * struct drm_device based WARNs
+ *
+ * drm_WARN*() acts like WARN*(), but with the key difference of
+ * using device specific information so that we know from which device
+ * warning is originating from.
+ *
+ * Prefer drm_device based drm_WARN* over regular WARN*
+ */
+
+/* Helper for struct drm_device based WARNs */
+#define drm_WARN(drm, condition, format, arg...)			\
+	WARN(condition, "%s %s: " format,				\
+			dev_driver_string((drm)->dev),			\
+			dev_name((drm)->dev), ## arg)
+
+#define drm_WARN_ONCE(drm, condition, format, arg...)			\
+	WARN_ONCE(condition, "%s %s: " format,				\
+			dev_driver_string((drm)->dev),			\
+			dev_name((drm)->dev), ## arg)
+
+#define drm_WARN_ON(drm, x)						\
+	drm_WARN((drm), (x), "%s",					\
+		 "drm_WARN_ON(" __stringify(x) ")")
+
+#define drm_WARN_ON_ONCE(drm, x)					\
+	drm_WARN_ONCE((drm), (x), "%s",					\
+		      "drm_WARN_ON_ONCE(" __stringify(x) ")")
 
 #endif /* DRM_PRINT_H_ */
