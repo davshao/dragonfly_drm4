@@ -27,6 +27,7 @@
  */
 #include <linux/console.h>
 #include <drm/drmP.h>
+#include <drm/drm_other_os.h>
 #include "drm/drm_legacy.h"		/* for drm_dma_handle_t */
 #include <drm/drm_crtc_helper.h>
 #include <drm/radeon_drm.h>

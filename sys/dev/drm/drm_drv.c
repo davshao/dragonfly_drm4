@@ -36,6 +36,8 @@
 #include <drm/drm_drv.h>
 #include <drm/drmP.h>
 #include <drm/drm_print.h>
+#include <drm/drm_sysctl.h>
+#include <drm/drm_other_os.h>
 
 #include "drm_crtc_internal.h"
 #include "drm_legacy.h"
@@ -597,18 +599,24 @@ int drm_dev_init(struct drm_device *dev,
 	dev->dev = parent;
 	dev->driver = driver;
 
+	INIT_LIST_HEAD(&dev->managed.resources);
 	INIT_LIST_HEAD(&dev->filelist);
-	INIT_LIST_HEAD(&dev->ctxlist);
-	INIT_LIST_HEAD(&dev->vmalist);
-	INIT_LIST_HEAD(&dev->maplist);
+	INIT_LIST_HEAD(&dev->filelist_internal);
+	INIT_LIST_HEAD(&dev->clientlist);
 	INIT_LIST_HEAD(&dev->vblank_event_list);
-
+	INIT_LIST_HEAD(&dev->legacy_dev_list);
+	INIT_LIST_HEAD(&dev->ctxlist);
+	INIT_LIST_HEAD(&dev->maplist);
+	INIT_LIST_HEAD(&dev->vmalist);
+	lockinit(&dev->managed.lock, "drmdml", 0, 0);
+	lockinit(&dev->quiesce_mtx, "drmdqm", 0, 0);
 	lockinit(&dev->buf_lock, "drmdbl", 0, 0);
 	lockinit(&dev->event_lock, "drmev", 0, 0);
 	lockinit(&dev->struct_mutex, "drmslk", 0, LK_CANRECURSE);
 	lockinit(&dev->filelist_mutex, "drmflm", 0, LK_CANRECURSE);
 	lockinit(&dev->ctxlist_mutex, "drmclm", 0, LK_CANRECURSE);
 	lockinit(&dev->master_mutex, "drmmm", 0, LK_CANRECURSE);
+	lockinit(&dev->clientlist_mutex, "drmcl", 0, LK_CANRECURSE);
 
 #ifndef __DragonFly__
 	dev->anon_inode = drm_fs_inode_new();
@@ -1209,8 +1217,8 @@ drm_create_cdevs(device_t kdev)
 #endif
 	unit = device_get_unit(kdev);
 
-	dev->devnode = make_dev(&drm_cdevsw, unit, DRM_DEV_UID, DRM_DEV_GID,
-				DRM_DEV_MODE, "dri/card%d", unit);
+	dev->devnode = make_dev(&drm_cdevsw, unit, UID_ROOT, GID_VIDEO,
+				(S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP), "dri/card%d", unit);
 	error = 0;
 	if (error == 0)
 		dev->devnode->si_drv1 = dev;
@@ -1232,7 +1240,7 @@ void drm_cdevpriv_dtor(void *cd)
 
 	DRM_DEBUG("open_count = %d\n", dev->open_count);
 
-	DRM_LOCK(dev);
+	lockmgr(&(dev)->struct_mutex, LK_EXCLUSIVE);
 
 	if (dev->driver->preclose != NULL)
 		dev->driver->preclose(dev, file_priv);
@@ -1266,7 +1274,7 @@ void drm_cdevpriv_dtor(void *cd)
 		drm_lastclose(dev);
 	}
 
-	DRM_UNLOCK(dev);
+	lockmgr(&(dev)->struct_mutex, LK_RELEASE);
 }
 
 int

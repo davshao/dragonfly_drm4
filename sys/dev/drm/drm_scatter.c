@@ -31,6 +31,7 @@
  */
 
 #include <drm/drmP.h>
+#include <drm/drm_other_os.h>
 #include "drm_legacy.h"
 
 #include <vm/vm_kern.h>
@@ -95,14 +96,14 @@ int drm_legacy_sg_alloc(struct drm_device *dev, void *data,
 		    vtophys(entry->vaddr + IDX_TO_OFF(pindex));
 	}
 
-	DRM_LOCK(dev);
+	lockmgr(&(dev)->struct_mutex, LK_EXCLUSIVE);
 	if (dev->sg) {
-		DRM_UNLOCK(dev);
+		lockmgr(&(dev)->struct_mutex, LK_RELEASE);
 		drm_sg_cleanup(entry);
 		return (-EINVAL);
 	}
 	dev->sg = entry;
-	DRM_UNLOCK(dev);
+	lockmgr(&(dev)->struct_mutex, LK_RELEASE);
 
 	request->handle = entry->vaddr;
 

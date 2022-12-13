@@ -87,6 +87,9 @@
 
 #include <drm/drm_print.h>
 #include <drm/drm_util.h>
+// #include <drm/drm_bridge.h>
+
+#if 0
 
 #ifdef __DragonFly__
 #include <sys/conf.h>
@@ -106,7 +109,6 @@ struct dma_buf_attachment;
 struct pci_dev;
 struct pci_controller;
 
-#if 0
 /*
  * The following categories are defined:
  *
@@ -372,19 +374,26 @@ void drm_err(const char *func, const char *format, ...);
 /** \name Internal types and structures */
 /*@{*/
 
+#if 0
 #define DRM_IF_VERSION(maj, min) (maj << 16 | min)
 
 #define DRM_DEV_MODE	(S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP)
 #define DRM_DEV_UID	UID_ROOT
 #define DRM_DEV_GID	GID_VIDEO
+#endif
 
+#if 0
 #define DRM_CURPROC		curthread
 #define DRM_STRUCTPROC		struct thread
 #define DRM_LOCK(dev)		lockmgr(&(dev)->struct_mutex, LK_EXCLUSIVE)
 #define DRM_UNLOCK(dev)		lockmgr(&(dev)->struct_mutex, LK_RELEASE)
+#endif
 
+#if 0
 #define DRM_SYSCTL_HANDLER_ARGS	(SYSCTL_HANDLER_ARGS)
+#endif
 
+#if 0
 #define drm_get_device_from_kdev(_kdev) (_kdev->si_drv1)
 
 int vm_phys_fictitious_reg_range(vm_paddr_t start, vm_paddr_t end,
@@ -394,13 +403,17 @@ vm_page_t vm_phys_fictitious_to_vm_page(vm_paddr_t pa);
 
 /* Flags and return codes for get_vblank_timestamp() driver function. */
 #define DRM_CALLED_FROM_VBLIRQ 1
+#endif
 
+#if 0
 /* get_scanout_position() return flags */
 #define DRM_SCANOUTPOS_VALID        (1 << 0)
 #define DRM_SCANOUTPOS_IN_VBLANK    (1 << 1)
 #define DRM_SCANOUTPOS_ACCURATE     (1 << 2)
+#endif
 
 #ifdef __DragonFly__
+#if 0
 struct drm_sysctl_info {
 	struct sysctl_ctx_list ctx;
 	char   name[2];
@@ -409,7 +422,9 @@ struct drm_sysctl_info {
 /* Length for the array of resource pointers for drm_get_resource_*. */
 #define DRM_MAX_PCI_RESOURCE	6
 #endif
+#endif
 
+#if 0
 /**
  * drm_drv_uses_atomic_modeset - check if the driver implements
  * atomic_commit()
@@ -422,23 +437,29 @@ static inline bool drm_drv_uses_atomic_modeset(struct drm_device *dev)
 {
 	return dev->mode_config.funcs->atomic_commit != NULL;
 }
+#endif
 
+#if 0
 #define DRM_SWITCH_POWER_ON 0
 #define DRM_SWITCH_POWER_OFF 1
 #define DRM_SWITCH_POWER_CHANGING 2
 #define DRM_SWITCH_POWER_DYNAMIC_OFF 3
+#endif
 
+#if 0
 static __inline__ int drm_core_check_feature(struct drm_device *dev,
 					     int feature)
 {
 	return ((dev->driver->driver_features & feature) ? 1 : 0);
 }
+#endif
 
 /******************************************************************/
 /** \name Internal function definitions */
 /*@{*/
 
 #ifdef __DragonFly__
+#if 0
 int    drm_create_cdevs(device_t kdev);
 
 d_kqfilter_t drm_kqfilter;
@@ -456,6 +477,7 @@ int drm_add_busid_modesetting(struct drm_device *dev,
 void drm_init_pdev(device_t dev, struct pci_dev **pdev);
 void drm_fini_pdev(struct pci_dev **pdev);
 void drm_print_pdev(struct pci_dev *pdev);
+#endif
 #endif
 
 /*
@@ -478,6 +500,7 @@ static __inline__ bool drm_can_sleep(void)
 #define for_each_if(condition) if (!(condition)) {} else
 #endif
 
+#if 0
 #ifdef __DragonFly__
 struct drm_softc {
 	void *drm_driver_data;
@@ -496,10 +519,13 @@ int ttm_bo_mmap_single(struct file *fp, struct drm_device *dev, vm_ooffset_t *of
 
 int drm_gem_mmap_single(struct drm_device *dev, vm_ooffset_t *offset,
     vm_size_t size, struct vm_object **obj_res, int nprot);
+#endif
 
+#if 0
 /* XXX: These are here only because of drm_sysctl.c */
 extern int drm_vblank_offdelay;
 extern unsigned int drm_timestamp_precision;
+#endif
 
 static __inline__ int drm_pci_device_is_agp(struct drm_device *dev)
 {

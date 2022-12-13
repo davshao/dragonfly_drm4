@@ -3,11 +3,11 @@
  * Copyright © 2021 Intel Corporation
  */
 
-#if 0
-
 #include <drm/drm_displayid.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_print.h>
+
+#if defined(__OpenBSD__)
 
 static int validate_displayid(const u8 *displayid, int length, int idx)
 {

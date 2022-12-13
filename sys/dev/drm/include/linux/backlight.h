@@ -1,3 +1,5 @@
+/* Public domain. */
+
 /*
  * Copyright (c) 2015 François Tigeot
  * All rights reserved.
@@ -24,13 +26,15 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_BACKLIGHT_H_
-#define _LINUX_BACKLIGHT_H_
+#ifndef _LINUX_BACKLIGHT_H
+#define _LINUX_BACKLIGHT_H
 
 #include <linux/device.h>
 #include <linux/fb.h>
 #include <linux/mutex.h>
 #include <linux/notifier.h>
+
+struct backlight_device;
 
 enum backlight_type {
 	BACKLIGHT_RAW = 1,
@@ -40,19 +44,37 @@ enum backlight_type {
 };
 
 struct backlight_properties {
-	int brightness;
-	int max_brightness;
-	int power;
 	enum backlight_type type;
-};
-
-struct backlight_device {
-	struct backlight_properties props;
+	int max_brightness;
+	int brightness;
+	int power;
 };
 
 struct backlight_ops {
+	int options;
 	int (*update_status)(struct backlight_device *);
 	int (*get_brightness)(struct backlight_device *);
 };
 
-#endif	/* _LINUX_BACKLIGHT_H_ */
+struct backlight_device {
+	const struct backlight_ops *ops;
+	struct backlight_properties props;
+#if defined(__OpenBSD__)
+	struct task task;
+#endif
+	void *data;
+};
+
+static inline struct backlight_device *
+devm_of_find_backlight(struct device *dev)
+{
+	return NULL;
+}
+
+static inline struct backlight_device *
+backlight_device_get_by_name(const char *name)
+{
+	return NULL;
+}
+
+#endif
