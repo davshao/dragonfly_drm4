@@ -30,6 +30,8 @@
  */
 
 #include <drm/drmP.h>
+#include <drm/drm_sysctl.h>
+#include <drm/drm_other_os.h>
 #include <drm/radeon_drm.h>
 #include "radeon_drv.h"
 
