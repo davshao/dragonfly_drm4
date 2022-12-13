@@ -21,11 +21,32 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/kthread.h>
+
+#include <drm/drm_ioctl.h>
+#include <drm/drm_vblank.h>
+
 #define DRM_IF_MAJOR 1
 #define DRM_IF_MINOR 4
 
+#define DRM_IF_VERSION(maj, min) (maj << 16 | min)
+
+struct dentry;
+struct dma_buf;
+struct dma_buf_map;
+struct drm_connector;
+struct drm_crtc;
+struct drm_framebuffer;
+struct drm_gem_object;
+struct drm_master;
+struct drm_minor;
+struct drm_prime_file_private;
+struct drm_printer;
+// struct drm_vblank_crtc;
+
 /* drm_file.c */
 extern struct lock drm_global_mutex;
+bool drm_dev_needs_global_mutex(struct drm_device *dev);
 void drm_lastclose(struct drm_device *dev);
 
 /* drm_pci.c */
@@ -51,12 +72,21 @@ void drm_prime_remove_buf_handle_locked(struct drm_prime_file_private *prime_fpr
 struct drm_minor *drm_minor_acquire(unsigned int minor_id);
 void drm_minor_release(struct drm_minor *minor);
 
+/* drm_managed.c */
+void drm_managed_release(struct drm_device *dev);
+void drmm_add_final_kfree(struct drm_device *dev, void *container);
+
 /* drm_info.c */
 int drm_name_info(struct seq_file *m, void *data);
 int drm_clients_info(struct seq_file *m, void* data);
 int drm_gem_name_info(struct seq_file *m, void *data);
 
 /* drm_vblank.c */
+static inline bool drm_vblank_passed(u64 seq, u64 ref)
+{
+	return (seq - ref) <= (1 << 23);
+}
+
 void drm_vblank_disable_and_save(struct drm_device *dev, unsigned int pipe);
 void drm_vblank_cleanup(struct drm_device *dev);
 
@@ -89,6 +119,8 @@ int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 int drm_master_open(struct drm_file *file_priv);
 void drm_master_release(struct drm_file *file_priv);
+bool drm_master_internal_acquire(struct drm_device *dev);
+void drm_master_internal_release(struct drm_device *dev);
 
 /* drm_sysfs.c */
 extern struct class *drm_class;
