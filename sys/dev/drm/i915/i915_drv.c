@@ -46,6 +46,8 @@
 #include <acpi/video.h>
 
 #include <drm/drmP.h>
+#include <drm/drm_sysctl.h>
+#include <drm/drm_other_os.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/i915_drm.h>

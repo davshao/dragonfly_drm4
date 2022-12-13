@@ -21,8 +21,10 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <drm/drmP.h>
+// #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_device.h>
 #include <drm/drm_modeset_lock.h>
 
 /**
@@ -35,7 +37,7 @@
  * of extra utility/tracking out of our acquire-ctx.  This is provided
  * by &struct drm_modeset_lock and &struct drm_modeset_acquire_ctx.
  *
- * For basic principles of &ww_mutex, see: Documentation/locking/ww-mutex-design.txt
+ * For basic principles of &ww_mutex, see: Documentation/locking/ww-mutex-design.rst
  *
  * The basic usage pattern is to::
  *
@@ -55,6 +57,10 @@
  *     out:
  *     drm_modeset_drop_locks(ctx);
  *     drm_modeset_acquire_fini(ctx);
+ *
+ * For convenience this control flow is implemented in
+ * DRM_MODESET_LOCK_ALL_BEGIN() and DRM_MODESET_LOCK_ALL_END() for the case
+ * where all modeset locks need to be taken through drm_modeset_lock_all_ctx().
  *
  * If all that is needed is a single modeset lock, then the &struct
  * drm_modeset_acquire_ctx is not needed and the locking can be simplified
@@ -113,6 +119,7 @@ retry:
 		kfree(ctx);
 		return;
 	}
+	ww_acquire_done(&ctx->ww_ctx);
 
 	WARN_ON(config->acquire_ctx);
 
@@ -226,12 +233,21 @@ void drm_modeset_drop_locks(struct drm_modeset_acquire_ctx *ctx)
 {
 	WARN_ON(ctx->contended);
 	while (!list_empty(&ctx->locked)) {
+#if 1 /* previous DragonFly */
 		struct drm_modeset_lock_info *info;
 
 		info = list_first_entry(&ctx->locked,
 				struct drm_modeset_lock_info, ctx_entry);
 
 		drm_modeset_unlock(info->lock);
+#else
+		struct drm_modeset_lock *lock;
+
+		lock = list_first_entry(&ctx->locked,
+				struct drm_modeset_lock, head);
+
+		drm_modeset_unlock(lock);
+#endif
 	}
 }
 EXPORT_SYMBOL(drm_modeset_drop_locks);
@@ -258,12 +274,10 @@ static inline int modeset_lock(struct drm_modeset_lock *lock,
 	} else if (interruptible) {
 		ret = ww_mutex_lock_interruptible(&lock->mutex, &ctx->ww_ctx);
 	} else if (slow) {
-		ww_mutex_lock_slow(&lock->mutex, &ctx->ww_ctx);
-#if 0
+		ret = ww_mutex_lock_slow(&lock->mutex, &ctx->ww_ctx);
 		if (ret)
-		    kprintf("DRM: Warning: modeset_lock SLOW failed %d\n", ret);
-#endif
-		ret = 0;
+			kprintf("DRM: Warning: modeset_lock SLOW failed %d\n", ret);
+		// ret = 0;
 	} else {
 		ret = ww_mutex_lock(&lock->mutex, &ctx->ww_ctx);
 	}
@@ -278,6 +292,7 @@ static inline int modeset_lock(struct drm_modeset_lock *lock,
 		ctx->contended = lock;
 	}
 	if (ret == 0) {
+#if 1 /* previous DragonFly */
 		struct drm_modeset_lock_info *info;
 
 		info = kzalloc(sizeof(*info), GFP_KERNEL);
@@ -287,6 +302,10 @@ static inline int modeset_lock(struct drm_modeset_lock *lock,
 		info->ctx = ctx;
 		list_add(&info->ctx_entry, &ctx->locked);
 		list_add(&info->lock_entry, &lock->head);
+#else
+		WARN_ON(!list_empty(&lock->head));
+		list_add(&lock->head, &ctx->locked);
+#endif
 	}
 
 	return ret;
@@ -380,6 +399,7 @@ EXPORT_SYMBOL(drm_modeset_lock_single_interruptible);
  */
 void drm_modeset_unlock(struct drm_modeset_lock *lock)
 {
+#if 1 /* previous DragonFly */
 	struct drm_modeset_lock_info *info;
 
 	/* undo in reverse order */
@@ -391,6 +411,9 @@ void drm_modeset_unlock(struct drm_modeset_lock *lock)
 			list_del_init(&info->ctx_entry);
 		kfree(info);
 	}
+#else
+	list_del_init(&lock->head);
+#endif
 	ww_mutex_unlock(&lock->mutex);
 }
 EXPORT_SYMBOL(drm_modeset_unlock);
@@ -411,11 +434,14 @@ EXPORT_SYMBOL(drm_modeset_unlock);
  * Locks acquired with this function should be released by calling the
  * drm_modeset_drop_locks() function on @ctx.
  *
+ * See also: DRM_MODESET_LOCK_ALL_BEGIN() and DRM_MODESET_LOCK_ALL_END()
+ *
  * Returns: 0 on success or a negative error-code on failure.
  */
 int drm_modeset_lock_all_ctx(struct drm_device *dev,
 			     struct drm_modeset_acquire_ctx *ctx)
 {
+	struct drm_private_obj *privobj;
 	struct drm_crtc *crtc;
 	struct drm_plane *plane;
 	int ret;
@@ -432,6 +458,12 @@ int drm_modeset_lock_all_ctx(struct drm_device *dev,
 
 	drm_for_each_plane(plane, dev) {
 		ret = drm_modeset_lock(&plane->mutex, ctx);
+		if (ret)
+			return ret;
+	}
+
+	drm_for_each_privobj(privobj, dev) {
+		ret = drm_modeset_lock(&privobj->lock, ctx);
 		if (ret)
 			return ret;
 	}
