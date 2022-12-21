@@ -53,7 +53,7 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 	unsigned i, j;
 	int r;
 
-	if (priority < 0 || priority >= DRM_SCHED_PRIORITY_MAX)
+	if (priority < 0 || priority >= DRM_SCHED_PRIORITY_COUNT)
 		return -EINVAL;
 
 	r = amdgpu_ctx_priority_permit(filp, priority);
@@ -285,7 +285,7 @@ int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 
 	/* For backwards compatibility reasons, we need to accept
 	 * ioctls with garbage in the priority field */
-	if (priority == DRM_SCHED_PRIORITY_INVALID)
+	if ((priority == DRM_SCHED_PRIORITY_INVALID) || (priority == DRM_SCHED_PRIORITY_INVALID))
 		priority = DRM_SCHED_PRIORITY_NORMAL;
 
 	switch (args->in.op) {
