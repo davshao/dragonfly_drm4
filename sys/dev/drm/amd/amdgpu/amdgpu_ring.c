@@ -323,7 +323,7 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	INIT_LIST_HEAD(&ring->lru_list);
 	amdgpu_ring_lru_touch(adev, ring);
 
-	for (i = 0; i < DRM_SCHED_PRIORITY_MAX; ++i)
+	for (i = 0; i < DRM_SCHED_PRIORITY_COUNT; ++i)
 		atomic_set(&ring->num_jobs[i], 0);
 
 	if (amdgpu_debugfs_ring_init(adev, ring)) {
