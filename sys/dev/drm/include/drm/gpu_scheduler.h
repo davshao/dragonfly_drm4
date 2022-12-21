@@ -26,20 +26,23 @@
 
 #include <drm/spsc_queue.h>
 #include <linux/dma-fence.h>
+#include <linux/completion.h>
 
 #define MAX_WAIT_SCHED_ENTITY_Q_EMPTY msecs_to_jiffies(1000)
 
 struct drm_gpu_scheduler;
 struct drm_sched_rq;
 
+/* These are often used as an (initial) index
+ * to an array, and as such should start at 0.
+ */
 enum drm_sched_priority {
 	DRM_SCHED_PRIORITY_MIN,
-	DRM_SCHED_PRIORITY_LOW = DRM_SCHED_PRIORITY_MIN,
 	DRM_SCHED_PRIORITY_NORMAL,
-	DRM_SCHED_PRIORITY_HIGH_SW,
-	DRM_SCHED_PRIORITY_HIGH_HW,
+	DRM_SCHED_PRIORITY_HIGH,
 	DRM_SCHED_PRIORITY_KERNEL,
-	DRM_SCHED_PRIORITY_MAX,
+
+	DRM_SCHED_PRIORITY_COUNT,
 	DRM_SCHED_PRIORITY_INVALID = -1,
 	DRM_SCHED_PRIORITY_UNSET = -2
 };
@@ -50,7 +53,12 @@ enum drm_sched_priority {
  *
  * @list: used to append this struct to the list of entities in the
  *        runqueue.
- * @rq: runqueue to which this entity belongs.
+ * @rq: runqueue on which this entity is currently scheduled.
+ * @sched_list: A list of schedulers (drm_gpu_schedulers).
+ *              Jobs from this entity can be scheduled on any scheduler
+ *              on this list.
+ * @num_sched_list: number of drm_gpu_schedulers in the sched_list.
+ * @priority: priority of the entity
  * @rq_lock: lock to modify the runqueue to which this entity belongs.
  * @job_queue: the list of jobs of this entity.
  * @fence_seq: a linearly increasing seqno incremented with each
@@ -67,6 +75,8 @@ enum drm_sched_priority {
  * @fini_status: contains the exit status in case the process was signalled.
  * @last_scheduled: points to the finished fence of the last scheduled job.
  * @last_user: last group leader pushing a job into the entity.
+ * @stopped: Marks the enity as removed from rq and destined for termination.
+ * @entity_idle: Signals when enityt is not in use
  *
  * Entities will emit jobs in order to their corresponding hardware
  * ring, and the scheduler will alternate between entities based on
@@ -75,7 +85,14 @@ enum drm_sched_priority {
 struct drm_sched_entity {
 	struct list_head		list;
 	struct drm_sched_rq		*rq;
+	struct drm_gpu_scheduler        **sched_list;
+	unsigned int                    num_sched_list;
+	enum drm_sched_priority         priority;
+#if defined(__OpenBSD__)
+	spinlock_t			rq_lock;
+#else
 	struct spinlock			rq_lock;
+#endif
 
 	struct spsc_queue		job_queue;
 
@@ -86,7 +103,13 @@ struct drm_sched_entity {
 	struct dma_fence_cb		cb;
 	atomic_t			*guilty;
 	struct dma_fence                *last_scheduled;
+#if defined(__linux__) || defined(__DragonFly__)
 	struct task_struct		*last_user;
+#else
+	struct process			*last_user;
+#endif
+	bool 				stopped;
+	struct completion		entity_idle;
 };
 
 /**
@@ -161,21 +184,17 @@ struct drm_sched_fence *to_drm_sched_fence(struct dma_fence *f);
  * struct drm_sched_job - A job to be run by an entity.
  *
  * @queue_node: used to append this struct to the queue of jobs in an entity.
+ * @list: a job participates in a "pending" and "done" lists.
  * @sched: the scheduler instance on which this job is scheduled.
  * @s_fence: contains the fences for the scheduling of job.
  * @finish_cb: the callback for the finished fence.
- * @finish_work: schedules the function @drm_sched_job_finish once the job has
- *               finished to remove the job from the
- *               @drm_gpu_scheduler.ring_mirror_list.
- * @node: used to append this struct to the @drm_gpu_scheduler.ring_mirror_list.
- * @work_tdr: schedules a delayed call to @drm_sched_job_timedout after the timeout
- *            interval is over.
  * @id: a unique id assigned to each job scheduled on the scheduler.
  * @karma: increment on every hang caused by this job. If this exceeds the hang
  *         limit of the scheduler then the job is marked guilty and will not
  *         be scheduled further.
  * @s_priority: the priority of the job.
  * @entity: the entity to which this job belongs.
+ * @cb: the callback for the parent fence in s_fence.
  *
  * A job is created by the driver using drm_sched_job_init(), and
  * should call drm_sched_entity_push_job() once it wants the scheduler
@@ -183,16 +202,18 @@ struct drm_sched_fence *to_drm_sched_fence(struct dma_fence *f);
  */
 struct drm_sched_job {
 	struct spsc_node		queue_node;
+	struct list_head		list;
 	struct drm_gpu_scheduler	*sched;
 	struct drm_sched_fence		*s_fence;
 	struct dma_fence_cb		finish_cb;
-	struct work_struct		finish_work;
-	struct list_head		node;
-	struct delayed_work		work_tdr;
 	uint64_t			id;
 	atomic_t			karma;
 	enum drm_sched_priority		s_priority;
-	struct drm_sched_entity  *entity;
+	struct drm_sched_entity		*entity;
+	struct dma_fence_cb		cb;
+	struct work_struct		finish_work;
+	struct delayed_work		work_tdr;
+	struct list_head		node;
 };
 
 static inline bool drm_sched_invalidate_job(struct drm_sched_job *s_job,
@@ -200,6 +221,12 @@ static inline bool drm_sched_invalidate_job(struct drm_sched_job *s_job,
 {
 	return (s_job && atomic_inc_return(&s_job->karma) > threshold);
 }
+
+enum drm_gpu_sched_stat {
+	DRM_GPU_SCHED_STAT_NONE, /* Reserve 0 */
+	DRM_GPU_SCHED_STAT_NOMINAL,
+	DRM_GPU_SCHED_STAT_ENODEV,
+};
 
 /**
  * struct drm_sched_backend_ops
@@ -225,10 +252,52 @@ struct drm_sched_backend_ops {
 	struct dma_fence *(*run_job)(struct drm_sched_job *sched_job);
 
 	/**
-         * @timedout_job: Called when a job has taken too long to execute,
-         * to trigger GPU recovery.
+	 * @timedout_job: Called when a job has taken too long to execute,
+	 * to trigger GPU recovery.
+	 *
+	 * This method is called in a workqueue context.
+	 *
+	 * Drivers typically issue a reset to recover from GPU hangs, and this
+	 * procedure usually follows the following workflow:
+	 *
+	 * 1. Stop the scheduler using drm_sched_stop(). This will park the
+	 *    scheduler thread and cancel the timeout work, guaranteeing that
+	 *    nothing is queued while we reset the hardware queue
+	 * 2. Try to gracefully stop non-faulty jobs (optional)
+	 * 3. Issue a GPU reset (driver-specific)
+	 * 4. Re-submit jobs using drm_sched_resubmit_jobs()
+	 * 5. Restart the scheduler using drm_sched_start(). At that point, new
+	 *    jobs can be queued, and the scheduler thread is unblocked
+	 *
+	 * Note that some GPUs have distinct hardware queues but need to reset
+	 * the GPU globally, which requires extra synchronization between the
+	 * timeout handler of the different &drm_gpu_scheduler. One way to
+	 * achieve this synchronization is to create an ordered workqueue
+	 * (using alloc_ordered_workqueue()) at the driver level, and pass this
+	 * queue to drm_sched_init(), to guarantee that timeout handlers are
+	 * executed sequentially. The above workflow needs to be slightly
+	 * adjusted in that case:
+	 *
+	 * 1. Stop all schedulers impacted by the reset using drm_sched_stop()
+	 * 2. Try to gracefully stop non-faulty jobs on all queues impacted by
+	 *    the reset (optional)
+	 * 3. Issue a GPU reset on all faulty queues (driver-specific)
+	 * 4. Re-submit jobs on all schedulers impacted by the reset using
+	 *    drm_sched_resubmit_jobs()
+	 * 5. Restart all schedulers that were stopped in step #1 using
+	 *    drm_sched_start()
+	 *
+	 * Return DRM_GPU_SCHED_STAT_NOMINAL, when all is normal,
+	 * and the underlying driver has started or completed recovery.
+	 *
+	 * Return DRM_GPU_SCHED_STAT_ENODEV, if the device is no longer
+	 * available, i.e. has been unplugged.
 	 */
+#if 1 /* previous DragonFly */
 	void (*timedout_job)(struct drm_sched_job *sched_job);
+#else
+	enum drm_gpu_sched_stat (*timedout_job)(struct drm_sched_job *sched_job);
+#endif
 
 	/**
          * @free_job: Called once the job's finished fence has been signaled
@@ -252,11 +321,18 @@ struct drm_sched_backend_ops {
  *                 finished.
  * @hw_rq_count: the number of jobs currently in the hardware queue.
  * @job_id_count: used to assign unique id to the each job.
+ * @timeout_wq: workqueue used to queue @work_tdr
+ * @work_tdr: schedules a delayed call to @drm_sched_job_timedout after the
+ *            timeout interval is over.
  * @thread: the kthread on which the scheduler which run.
- * @ring_mirror_list: the list of jobs which are currently in the job queue.
- * @job_list_lock: lock to protect the ring_mirror_list.
+ * @pending_list: the list of jobs which are currently in the job queue.
+ * @job_list_lock: lock to protect the pending_list.
  * @hang_limit: once the hangs by a job crosses this limit then it is marked
- *              guilty and it will be considered for scheduling further.
+ *              guilty and it will no longer be considered for scheduling.
+ * @score: score to help loadbalancer pick a idle sched
+ * @_score: score used when the driver doesn't provide one
+ * @ready: marks if the underlying HW is ready to work
+ * @free_guilty: A hit to time out handler to free the guilty job.
  *
  * One scheduler is implemented for each hardware ring.
  */
@@ -265,15 +341,30 @@ struct drm_gpu_scheduler {
 	uint32_t			hw_submission_limit;
 	long				timeout;
 	const char			*name;
-	struct drm_sched_rq		sched_rq[DRM_SCHED_PRIORITY_MAX];
+	struct drm_sched_rq		sched_rq[DRM_SCHED_PRIORITY_COUNT];
 	wait_queue_head_t		wake_up_worker;
 	wait_queue_head_t		job_scheduled;
 	atomic_t			hw_rq_count;
 	atomic64_t			job_id_count;
+	struct workqueue_struct		*timeout_wq;
+	struct delayed_work		work_tdr;
+#if defined(__linux__) || defined(__DragonFly__)
 	struct task_struct		*thread;
-	struct list_head		ring_mirror_list;
+#else
+	struct proc			*thread;
+#endif
+	struct list_head		pending_list;
+#if defined(__OpenBSD__)
+	spinlock_t			job_list_lock;
+#else
 	struct spinlock			job_list_lock;
+#endif
 	int				hang_limit;
+	atomic_t                        *score;
+	atomic_t                        _score;
+	bool				ready;
+	bool				free_guilty;
+	struct list_head		ring_mirror_list;
 };
 
 int drm_sched_init(struct drm_gpu_scheduler *sched,
