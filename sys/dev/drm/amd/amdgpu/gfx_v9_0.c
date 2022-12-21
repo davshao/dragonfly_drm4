@@ -4124,7 +4124,7 @@ static void gfx_v9_0_ring_set_priority_compute(struct amdgpu_ring *ring,
 					       enum drm_sched_priority priority)
 {
 	struct amdgpu_device *adev = ring->adev;
-	bool acquire = priority == DRM_SCHED_PRIORITY_HIGH_HW;
+	bool acquire = priority == DRM_SCHED_PRIORITY_HIGH;
 
 	if (ring->funcs->type != AMDGPU_RING_TYPE_COMPUTE)
 		return;

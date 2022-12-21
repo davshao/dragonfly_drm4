@@ -20,16 +20,22 @@
  * OF THIS SOFTWARE.
  */
 
+#include <linux/delay.h>
+#include <linux/errno.h>
+#include <linux/i2c.h>
+#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/delay.h>
-#include <linux/init.h>
-#include <linux/errno.h>
 #include <linux/sched.h>
-#include <linux/i2c.h>
 #include <linux/seq_file.h>
+
 #include <drm/drm_dp_helper.h>
-#include <drm/drmP.h>
+#include <drm/drm_print.h>
+#include <drm/drm_vblank.h>
+#include <drm/drm_dp_mst_helper.h>
+#include <drm/drm_panel.h>
+
+// #include <drm/drmP.h>
 
 #include "drm_crtc_helper_internal.h"
 
@@ -1227,7 +1233,7 @@ struct dpcd_quirk {
 
 static const struct dpcd_quirk dpcd_quirk_list[] = {
 	/* Analogix 7737 needs reduced M and N at HBR2 link rates */
-	{ OUI(0x00, 0x22, 0xb9), true, BIT(DP_DPCD_QUIRK_LIMITED_M_N) },
+	{ OUI(0x00, 0x22, 0xb9), true, BIT(DP_DPCD_QUIRK_CONSTANT_N) },
 };
 
 #undef OUI
