@@ -44,8 +44,6 @@
  * The jobs in a entity are always scheduled in the order that they were pushed.
  */
 
-#if 0
-
 #include <linux/kthread.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
@@ -974,5 +972,3 @@ void drm_sched_fini(struct drm_gpu_scheduler *sched)
 		kthread_stop(sched->thread);
 }
 EXPORT_SYMBOL(drm_sched_fini);
-
-#endif
