@@ -102,7 +102,7 @@ struct drm_client_dev {
 	/**
 	 * @modeset_mutex: Protects @modesets.
 	 */
-	struct rwlock modeset_mutex;
+	struct lock modeset_mutex;
 
 	/**
 	 * @modesets: CRTC configurations
