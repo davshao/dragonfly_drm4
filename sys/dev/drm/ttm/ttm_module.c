@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**************************************************************************
  *
  * Copyright (c) 2006-2009 VMware, Inc., Palo Alto, CA., USA
@@ -30,12 +31,51 @@
  */
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/pgtable.h>
 #include <linux/sched.h>
-#include <drm/ttm/ttm_module.h>
 #include <drm/drm_sysfs.h>
+#include <drm/ttm/ttm_module.h>
+#include <drm/ttm/ttm_caching.h>
 
 static DECLARE_WAIT_QUEUE_HEAD(exit_q);
 static atomic_t device_released;
+
+/**
+ * ttm_prot_from_caching - Modify the page protection according to the
+ * ttm cacing mode
+ * @caching: The ttm caching mode
+ * @tmp: The original page protection
+ *
+ * Return: The modified page protection
+ */
+pgprot_t ttm_prot_from_caching(enum ttm_caching caching, pgprot_t tmp)
+{
+	/* Cached mappings need no adjustment */
+	if (caching == ttm_cached)
+		return tmp;
+
+#if defined(__i386__) || defined(__x86_64__)
+	if (caching == ttm_write_combined)
+		tmp = pgprot_writecombine(tmp);
+#if defined(__OpenBSD__)
+	else if (curcpu()->ci_family > 3)
+#else
+	else  /* not sure DragonFly */
+#endif
+		tmp = pgprot_noncached(tmp);
+#endif
+#if defined(__ia64__) || defined(__arm__) || defined(__aarch64__) || \
+	defined(__powerpc__) || defined(__mips__)
+	if (caching == ttm_write_combined)
+		tmp = pgprot_writecombine(tmp);
+	else
+		tmp = pgprot_noncached(tmp);
+#endif
+#if defined(__sparc__)
+	tmp = pgprot_noncached(tmp);
+#endif
+	return tmp;
+}
 
 #if 0
 static struct device_type ttm_drm_class_type = {
@@ -104,3 +144,4 @@ module_exit(ttm_exit);
 
 MODULE_AUTHOR("Thomas Hellstrom, Jerome Glisse");
 MODULE_DESCRIPTION("TTM memory manager subsystem (for DRM device)");
+MODULE_LICENSE("GPL and additional rights");
