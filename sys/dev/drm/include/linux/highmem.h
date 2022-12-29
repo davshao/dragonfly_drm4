@@ -64,6 +64,15 @@
 #endif
 
 #if defined(__OpenBSD__)
+/* drm_linux.c
+ * need to implement? OpenBSD makes an actual kernel map */
+vaddr_t kmap_atomic_va;
+#else
+extern vm_offset_t kmap_atomic_va;
+#endif
+extern int kmap_atomic_inuse;
+
+#if defined(__OpenBSD__)
 void	*kmap(struct vm_page *);
 #else
 void	*kmap(struct page *);
