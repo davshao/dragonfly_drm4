@@ -42,6 +42,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_map.h>
 #include <linux/highmem.h>
 
 void *
@@ -108,8 +111,10 @@ kmap_to_page(void *addr)
 /* drm_linux.c
  * need to implement? OpenBSD makes an actual kernel map */
 vaddr_t kmap_atomic_va;
-int kmap_atomic_inuse;
+#else
+vm_offset_t kmap_atomic_va;
 #endif
+int kmap_atomic_inuse;
 
 #if defined(__OpenBSD__)
 void *
@@ -159,3 +164,12 @@ kmap_atomic(struct page *pg)
 	return kmap_atomic_prot(pg, 0);
 #endif
 }
+
+static int drm_page_init(void *dummy __unused)
+{
+	kmap_atomic_va = kmem_alloc_pageable(kernel_map, PAGE_SIZE, VM_SUBSYS_DRM);
+	kmap_atomic_inuse = 0;
+	return 0;
+}
+
+SYSINIT(linux_drm_page_init, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, drm_page_init, NULL);
