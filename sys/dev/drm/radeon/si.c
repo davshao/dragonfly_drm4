@@ -6903,7 +6903,7 @@ int si_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-#ifdef __DragonFly__
+#if 0 && defined(__DragonFly__)
 	/*
 	   Some glx operations (xfce 4.14) hang on si hardware,
 	   tell userland acceleration is not working properly
